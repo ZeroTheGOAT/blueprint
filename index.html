@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Blueprint Studio — A visual node-based editor for story planning, game design, and creative workflows. Build blueprints like Unreal Engine." />
+  <title>Blueprint Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔷</text></svg>">
+</head>
+<body>
+  <!-- Auth Screen -->
+  <div id="auth-screen">
+    <div class="auth-background">
+      <div class="grid-lines"></div>
+      <div class="glow-orb orb-1"></div>
+      <div class="glow-orb orb-2"></div>
+      <div class="glow-orb orb-3"></div>
+    </div>
+    <div class="auth-container">
+      <div class="auth-logo">
+        <div class="logo-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <rect x="4" y="4" width="16" height="16" rx="3" fill="#7c3aed" opacity="0.9"/>
+            <rect x="28" y="4" width="16" height="16" rx="3" fill="#00d4ff" opacity="0.9"/>
+            <rect x="4" y="28" width="16" height="16" rx="3" fill="#10b981" opacity="0.9"/>
+            <rect x="28" y="28" width="16" height="16" rx="3" fill="#f59e0b" opacity="0.9"/>
+            <line x1="20" y1="12" x2="28" y2="12" stroke="#fff" stroke-width="2" opacity="0.6"/>
+            <line x1="12" y1="20" x2="12" y2="28" stroke="#fff" stroke-width="2" opacity="0.6"/>
+            <line x1="36" y1="20" x2="36" y2="28" stroke="#fff" stroke-width="2" opacity="0.6"/>
+            <line x1="20" y1="36" x2="28" y2="36" stroke="#fff" stroke-width="2" opacity="0.6"/>
+          </svg>
+        </div>
+        <h1 class="auth-title">Blueprint Studio</h1>
+        <p class="auth-subtitle">Visual node editor for your creative projects</p>
+      </div>
+
+      <div class="auth-card">
+        <!-- Login Methods -->
+        <div id="auth-methods">
+          <button id="google-signin-btn" class="auth-btn google-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            Continue with Google
+          </button>
+
+          <div class="auth-divider">
+            <span>or</span>
+          </div>
+
+          <button id="phone-toggle-btn" class="auth-btn phone-btn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            Continue with Phone
+          </button>
+        </div>
+
+        <!-- Phone Input -->
+        <div id="phone-input-section" class="hidden">
+          <button class="back-btn" id="phone-back-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+          </button>
+          <div class="input-group">
+            <label for="phone-number">Phone Number</label>
+            <div class="phone-input-wrapper">
+              <span class="country-code">+91</span>
+              <input type="tel" id="phone-number" placeholder="Enter your phone number" maxlength="10" />
+            </div>
+          </div>
+          <div id="recaptcha-container"></div>
+          <button id="send-otp-btn" class="auth-btn primary-btn">Send OTP</button>
+        </div>
+
+        <!-- OTP Verification -->
+        <div id="otp-section" class="hidden">
+          <button class="back-btn" id="otp-back-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back
+          </button>
+          <p class="otp-info">Enter the 6-digit code sent to your phone</p>
+          <div class="otp-inputs">
+            <input type="text" maxlength="1" class="otp-digit" data-index="0" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="1" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="2" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="3" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="4" />
+            <input type="text" maxlength="1" class="otp-digit" data-index="5" />
+          </div>
+          <button id="verify-otp-btn" class="auth-btn primary-btn">Verify & Continue</button>
+        </div>
+
+        <div id="auth-error" class="auth-error hidden"></div>
+        <div id="auth-loading" class="auth-loading hidden">
+          <div class="spinner"></div>
+          <span>Authenticating...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App -->
+  <div id="app" class="hidden">
+    <!-- Top Toolbar -->
+    <div id="toolbar">
+      <div class="toolbar-left">
+        <button id="mobile-menu-btn" class="toolbar-icon-btn mobile-only" title="Menu">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="toolbar-logo">
+          <svg width="24" height="24" viewBox="0 0 48 48" fill="none">
+            <rect x="4" y="4" width="16" height="16" rx="3" fill="#7c3aed" opacity="0.9"/>
+            <rect x="28" y="4" width="16" height="16" rx="3" fill="#00d4ff" opacity="0.9"/>
+            <rect x="4" y="28" width="16" height="16" rx="3" fill="#10b981" opacity="0.9"/>
+            <rect x="28" y="28" width="16" height="16" rx="3" fill="#f59e0b" opacity="0.9"/>
+            <line x1="20" y1="12" x2="28" y2="12" stroke="#fff" stroke-width="2" opacity="0.6"/>
+            <line x1="12" y1="20" x2="12" y2="28" stroke="#fff" stroke-width="2" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="toolbar-menus">
+          <div class="toolbar-menu" data-menu="file">
+            <span>File</span>
+            <div class="dropdown-menu" id="file-menu">
+              <button data-action="new-project"><span class="menu-icon">📄</span> New Project <span class="shortcut">Ctrl+N</span></button>
+              <button data-action="open-project"><span class="menu-icon">📂</span> Open Project</button>
+              <div class="menu-divider"></div>
+              <button data-action="save"><span class="menu-icon">💾</span> Save <span class="shortcut">Ctrl+S</span></button>
+              <button data-action="save-as"><span class="menu-icon">📋</span> Save As...</button>
+              <div class="menu-divider"></div>
+              <button data-action="export-json"><span class="menu-icon">📤</span> Export JSON</button>
+              <button data-action="export-png"><span class="menu-icon">🖼️</span> Export as PNG</button>
+              <button data-action="import-json"><span class="menu-icon">📥</span> Import JSON</button>
+            </div>
+          </div>
+          <div class="toolbar-menu" data-menu="edit">
+            <span>Edit</span>
+            <div class="dropdown-menu" id="edit-menu">
+              <button data-action="undo"><span class="menu-icon">↩️</span> Undo <span class="shortcut">Ctrl+Z</span></button>
+              <button data-action="redo"><span class="menu-icon">↪️</span> Redo <span class="shortcut">Ctrl+Y</span></button>
+              <div class="menu-divider"></div>
+              <button data-action="cut"><span class="menu-icon">✂️</span> Cut <span class="shortcut">Ctrl+X</span></button>
+              <button data-action="copy"><span class="menu-icon">📋</span> Copy <span class="shortcut">Ctrl+C</span></button>
+              <button data-action="paste"><span class="menu-icon">📌</span> Paste <span class="shortcut">Ctrl+V</span></button>
+              <div class="menu-divider"></div>
+              <button data-action="select-all"><span class="menu-icon">⬜</span> Select All <span class="shortcut">Ctrl+A</span></button>
+              <button data-action="delete-selected"><span class="menu-icon">🗑️</span> Delete <span class="shortcut">Del</span></button>
+            </div>
+          </div>
+          <div class="toolbar-menu" data-menu="view">
+            <span>View</span>
+            <div class="dropdown-menu" id="view-menu">
+              <button data-action="zoom-in"><span class="menu-icon">🔍</span> Zoom In <span class="shortcut">Ctrl++</span></button>
+              <button data-action="zoom-out"><span class="menu-icon">🔍</span> Zoom Out <span class="shortcut">Ctrl+-</span></button>
+              <button data-action="zoom-reset"><span class="menu-icon">🎯</span> Reset Zoom <span class="shortcut">Ctrl+0</span></button>
+              <button data-action="fit-all"><span class="menu-icon">📐</span> Fit All <span class="shortcut">F</span></button>
+              <div class="menu-divider"></div>
+              <button data-action="toggle-grid"><span class="menu-icon">📏</span> Toggle Grid</button>
+              <button data-action="toggle-minimap"><span class="menu-icon">🗺️</span> Toggle Minimap</button>
+              <button data-action="toggle-snap"><span class="menu-icon">🧲</span> Toggle Snap to Grid</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="toolbar-center">
+        <input type="text" id="project-name" value="Untitled Project" spellcheck="false" />
+        <span id="save-status" class="save-status">Saved</span>
+      </div>
+      <div class="toolbar-right">
+        <button id="search-btn" class="toolbar-icon-btn" title="Search (Ctrl+F)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        </button>
+        <button id="minimap-btn" class="toolbar-icon-btn" title="Toggle Minimap">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><rect x="7" y="7" width="3" height="3"/><rect x="14" y="7" width="3" height="3"/><rect x="7" y="14" width="3" height="3"/></svg>
+        </button>
+        <div class="zoom-controls">
+          <button id="zoom-out-btn" class="toolbar-icon-btn" title="Zoom Out">−</button>
+          <span id="zoom-level">100%</span>
+          <button id="zoom-in-btn" class="toolbar-icon-btn" title="Zoom In">+</button>
+        </div>
+        <div class="user-menu" id="user-menu">
+          <div class="user-avatar" id="user-avatar">
+            <span id="user-initial">?</span>
+            <img id="user-photo" class="hidden" alt="User" />
+          </div>
+          <div class="dropdown-menu user-dropdown" id="user-dropdown">
+            <div class="user-info">
+              <span id="user-name">User</span>
+              <span id="user-email" class="user-email-text">email</span>
+            </div>
+            <div class="menu-divider"></div>
+            <button data-action="my-projects"><span class="menu-icon">📁</span> My Projects</button>
+            <button data-action="logout"><span class="menu-icon">🚪</span> Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content Area -->
+    <div id="main-content">
+      <!-- Mobile sidebar overlay -->
+      <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
+
+      <!-- Left Sidebar (Node Palette) -->
+      <div id="sidebar" class="sidebar">
+        <div class="sidebar-header">
+          <h3>Nodes</h3>
+          <button id="close-sidebar-btn" class="panel-close mobile-only">×</button>
+          <input type="text" id="node-search" placeholder="Search nodes..." />
+        </div>
+        <div class="sidebar-content" id="node-palette">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Canvas Container -->
+      <div id="canvas-container">
+        <canvas id="blueprint-canvas"></canvas>
+        <!-- Minimap -->
+        <div id="minimap" class="minimap">
+          <canvas id="minimap-canvas"></canvas>
+        </div>
+        <!-- Canvas Overlay Info -->
+        <div id="canvas-info">
+          <span id="node-count">0 nodes</span>
+          <span id="connection-count">0 connections</span>
+        </div>
+      </div>
+
+      <!-- Right Sidebar (Properties) -->
+      <div id="properties-panel" class="properties-panel hidden">
+        <div class="panel-header">
+          <h3>Properties</h3>
+          <button id="close-properties" class="panel-close">×</button>
+        </div>
+        <div class="panel-content" id="properties-content">
+          <p class="empty-state">Select a node to view properties</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu hidden">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Search Dialog -->
+    <div id="search-dialog" class="modal-overlay hidden">
+      <div class="search-modal">
+        <input type="text" id="search-input" placeholder="Search nodes by name..." />
+        <div id="search-results" class="search-results"></div>
+      </div>
+    </div>
+
+    <!-- Project Manager Modal -->
+    <div id="project-modal" class="modal-overlay hidden">
+      <div class="modal-card project-manager-modal">
+        <div class="modal-header">
+          <h2>My Projects</h2>
+          <button class="modal-close" id="close-project-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="project-list" class="project-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="new-project-modal-btn" class="auth-btn primary-btn">+ New Project</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import file input (hidden) -->
+    <input type="file" id="import-file-input" accept=".json,.blueprint.json" class="hidden" />
+
+    <!-- Mobile Floating Action Bar -->
+    <div id="mobile-fab" class="mobile-fab mobile-only">
+      <button id="fab-add" class="fab-btn fab-primary" title="Add Node">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button id="fab-undo" class="fab-btn" title="Undo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10h10a5 5 0 0 1 0 10H8"/><path d="M3 10l4-4M3 10l4 4"/></svg>
+      </button>
+      <button id="fab-redo" class="fab-btn" title="Redo">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10H11a5 5 0 0 0 0 10h5"/><path d="M21 10l-4-4M21 10l-4 4"/></svg>
+      </button>
+      <button id="fab-fit" class="fab-btn" title="Fit All">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+      </button>
+      <button id="fab-delete" class="fab-btn fab-danger" title="Delete Selected">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+      </button>
+    </div>
+
+    <!-- Mobile Add Node Panel -->
+    <div id="mobile-add-panel" class="mobile-add-panel hidden">
+      <div class="mobile-add-header">
+        <h3>Add Node</h3>
+        <button id="close-add-panel" class="panel-close">×</button>
+      </div>
+      <div class="mobile-add-grid" id="mobile-node-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
