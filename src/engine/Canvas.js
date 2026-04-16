@@ -183,18 +183,18 @@ export class BlueprintCanvas {
       
       if (hitNode) {
         this.touchState.touchStartedOnNode = true;
+        this.touchState.hitNode = hitNode;
         
-        // Select the node
-        if (!this.selectedNodes.has(hitNode.id)) {
-          this.clearSelection();
-        }
-        this.selectNode(hitNode.id);
+        // Don't select/open properties yet — wait for touchEnd to determine if it's tap vs drag
+        // Just visually highlight the node for feedback
+        hitNode.selected = true;
+        this.selectedNodes.add(hitNode.id);
         
         // Prepare dragging
         this.touchState.isTouchDragging = false; // Will become true on move
         this.dragStartX = wx;
         this.dragStartY = wy;
-        this.dragNodes = this.getSelectedNodes().map(n => ({
+        this.dragNodes = [hitNode, ...this.getSelectedNodes().filter(n => n !== hitNode)].map(n => ({
           node: n,
           startX: n.x,
           startY: n.y
@@ -340,8 +340,21 @@ export class BlueprintCanvas {
       this.isDragging = false;
       this.touchState.isTouchDragging = false;
       this.pushHistory();
+      // Don't notify selection — it was a drag, not a tap
+      this.touchState.hitNode = null;
+      this.touchState.isTouchPanning = false;
+      this.touchState.singleTouchStart = null;
+      this.touchState.touchStartedOnNode = false;
+      this.render();
       return;
     }
+    
+    // It was a tap on a node (not a drag) — now open properties
+    if (this.touchState.hitNode && e.touches.length === 0) {
+      this.notifySelectionChanged();
+      this.render();
+    }
+    this.touchState.hitNode = null;
     
     // Check for double-tap
     if (e.touches.length === 0 && this.touchState.singleTouchStart) {
@@ -1401,6 +1414,51 @@ export class BlueprintCanvas {
       const color = PORT_COLORS[port?.type] || PORT_COLORS.data;
       
       this.drawBezier(ctx, from, to, color, false);
+      
+      // Draw connection label if present
+      if (conn.label) {
+        const midX = (from.x + to.x) / 2;
+        const midY = (from.y + to.y) / 2;
+        
+        ctx.save();
+        ctx.font = '11px Inter, sans-serif';
+        const textWidth = ctx.measureText(conn.label).width;
+        
+        // Label background pill
+        ctx.fillStyle = 'rgba(20, 20, 40, 0.9)';
+        const px = 8, py = 4;
+        ctx.beginPath();
+        const lx = midX - textWidth / 2 - px;
+        const ly = midY - 8 - py;
+        const lw = textWidth + px * 2;
+        const lh = 16 + py * 2;
+        ctx.moveTo(lx + 6, ly);
+        ctx.lineTo(lx + lw - 6, ly);
+        ctx.quadraticCurveTo(lx + lw, ly, lx + lw, ly + 6);
+        ctx.lineTo(lx + lw, ly + lh - 6);
+        ctx.quadraticCurveTo(lx + lw, ly + lh, lx + lw - 6, ly + lh);
+        ctx.lineTo(lx + 6, ly + lh);
+        ctx.quadraticCurveTo(lx, ly + lh, lx, ly + lh - 6);
+        ctx.lineTo(lx, ly + 6);
+        ctx.quadraticCurveTo(lx, ly, lx + 6, ly);
+        ctx.closePath();
+        ctx.fill();
+        
+        // Label border
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.globalAlpha = 0.4;
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        
+        // Label text
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(conn.label, midX, midY);
+        ctx.textAlign = 'left';
+        ctx.restore();
+      }
     });
   }
 

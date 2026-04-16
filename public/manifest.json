@@ -1,0 +1,27 @@
+{
+  "name": "Blueprint Studio",
+  "short_name": "Blueprint",
+  "description": "Visual node-based editor for story planning, game design, and creative workflows",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d1a",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "categories": ["productivity", "design"],
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "New Project",
+      "url": "/",
+      "description": "Create a new blueprint project"
+    }
+  ]
+}

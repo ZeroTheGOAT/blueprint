@@ -372,6 +372,9 @@ function handleMenuAction(action) {
     case 'my-projects':
       showProjectModal();
       break;
+    case 'install-app':
+      triggerInstall();
+      break;
     case 'logout':
       handleLogout();
       break;
@@ -747,6 +750,9 @@ function showContextMenu(info) {
     `;
   } else if (info.connection) {
     menu.innerHTML = `
+      <button data-action="label-connection" data-conn-id="${info.connection.id}"><span class="menu-icon">🏷️</span> ${info.connection.label ? 'Edit Label' : 'Add Label'}</button>
+      ${info.connection.label ? `<button data-action="remove-label" data-conn-id="${info.connection.id}"><span class="menu-icon">🚫</span> Remove Label</button>` : ''}
+      <div class="menu-divider"></div>
       <button data-action="delete-connection" data-conn-id="${info.connection.id}"><span class="menu-icon">🗑️</span> Delete Connection</button>
     `;
   } else {
@@ -808,6 +814,31 @@ function showContextMenu(info) {
         case 'delete-connection':
           canvas.deleteConnection(btn.dataset.connId);
           break;
+        case 'label-connection': {
+          const connId = btn.dataset.connId;
+          const conn = canvas.graph.connections.get(connId);
+          if (conn) {
+            const label = prompt('Connection label:', conn.label || '');
+            if (label !== null) {
+              conn.label = label.trim() || '';
+              canvas.pushHistory();
+              canvas.notifyGraphChanged();
+              canvas.render();
+            }
+          }
+          break;
+        }
+        case 'remove-label': {
+          const cId = btn.dataset.connId;
+          const c = canvas.graph.connections.get(cId);
+          if (c) {
+            c.label = '';
+            canvas.pushHistory();
+            canvas.notifyGraphChanged();
+            canvas.render();
+          }
+          break;
+        }
         case 'add-node':
           canvas.addNode(btn.dataset.nodeType, info.worldX, info.worldY);
           break;
@@ -1256,6 +1287,78 @@ function initMobile() {
 }
 
 // ============================
+// PWA Install
+// ============================
+
+let deferredInstallPrompt = null;
+
+function initPWA() {
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      console.log('SW registered:', reg.scope);
+    }).catch((err) => {
+      console.log('SW registration failed:', err);
+    });
+  }
+  
+  // Capture the beforeinstallprompt event
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    
+    // Show install button in user menu
+    const installMenuBtn = document.getElementById('install-menu-btn');
+    if (installMenuBtn) installMenuBtn.classList.remove('hidden');
+    
+    // Show install banner after 3 seconds if not dismissed before
+    const dismissed = localStorage.getItem('blueprint_install_dismissed');
+    if (!dismissed) {
+      setTimeout(() => {
+        const banner = document.getElementById('install-banner');
+        if (banner && deferredInstallPrompt) {
+          banner.classList.remove('hidden');
+        }
+      }, 3000);
+    }
+  });
+  
+  // Install banner buttons
+  document.getElementById('install-banner-btn')?.addEventListener('click', () => {
+    triggerInstall();
+    document.getElementById('install-banner')?.classList.add('hidden');
+  });
+  
+  document.getElementById('install-banner-close')?.addEventListener('click', () => {
+    document.getElementById('install-banner')?.classList.add('hidden');
+    localStorage.setItem('blueprint_install_dismissed', 'true');
+  });
+  
+  // Listen for successful install
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    document.getElementById('install-menu-btn')?.classList.add('hidden');
+    document.getElementById('install-banner')?.classList.add('hidden');
+    showToast('Blueprint Studio installed! 🎉', 'success');
+  });
+}
+
+function triggerInstall() {
+  if (!deferredInstallPrompt) {
+    showToast('App is already installed or install not available', 'info');
+    return;
+  }
+  
+  deferredInstallPrompt.prompt();
+  deferredInstallPrompt.userChoice.then((choice) => {
+    if (choice.outcome === 'accepted') {
+      showToast('Installing Blueprint Studio...', 'success');
+    }
+    deferredInstallPrompt = null;
+  });
+}
+
+// ============================
 // Logout
 // ============================
 
@@ -1275,5 +1378,6 @@ async function handleLogout() {
 // ============================
 
 document.addEventListener('DOMContentLoaded', () => {
+  initPWA();
   initAuth();
 });

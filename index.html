@@ -9,6 +9,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔷</text></svg>">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icon-512.png">
+  <meta name="theme-color" content="#7c3aed">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Blueprint Studio">
 </head>
 <body>
   <!-- Auth Screen -->
@@ -189,6 +195,8 @@
             </div>
             <div class="menu-divider"></div>
             <button data-action="my-projects"><span class="menu-icon">📁</span> My Projects</button>
+            <button data-action="install-app" id="install-menu-btn" class="hidden"><span class="menu-icon">📲</span> Install App</button>
+            <div class="menu-divider"></div>
             <button data-action="logout"><span class="menu-icon">🚪</span> Sign Out</button>
           </div>
         </div>
@@ -299,6 +307,19 @@
       </div>
       <div class="mobile-add-grid" id="mobile-node-grid">
         <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- PWA Install Banner -->
+    <div id="install-banner" class="install-banner hidden">
+      <div class="install-banner-content">
+        <div class="install-banner-icon">🔷</div>
+        <div class="install-banner-text">
+          <strong>Install Blueprint Studio</strong>
+          <span>Add to home screen for the best experience</span>
+        </div>
+        <button id="install-banner-btn" class="install-banner-action">Install</button>
+        <button id="install-banner-close" class="install-banner-close">✕</button>
       </div>
     </div>
   </div>
