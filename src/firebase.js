@@ -120,7 +120,7 @@ export async function logOut() {
 
 export async function saveProject(userId, projectId, projectData) {
   try {
-    const ref = doc(db, 'users', userId, 'projects', projectId);
+    const ref = doc(db, 'users', userId, 'blueprint', projectId);
     await setDoc(ref, {
       ...projectData,
       updatedAt: serverTimestamp()
@@ -134,7 +134,7 @@ export async function saveProject(userId, projectId, projectData) {
 
 export async function loadProject(userId, projectId) {
   try {
-    const ref = doc(db, 'users', userId, 'projects', projectId);
+    const ref = doc(db, 'users', userId, 'blueprint', projectId);
     const snap = await getDoc(ref);
     if (snap.exists()) {
       return { data: snap.data(), error: null };
@@ -147,7 +147,7 @@ export async function loadProject(userId, projectId) {
 
 export async function listProjects(userId) {
   try {
-    const ref = collection(db, 'users', userId, 'projects');
+    const ref = collection(db, 'users', userId, 'blueprint');
     const q = query(ref, orderBy('updatedAt', 'desc'));
     const snapshot = await getDocs(q);
     const projects = [];
@@ -162,7 +162,7 @@ export async function listProjects(userId) {
 
 export async function deleteProject(userId, projectId) {
   try {
-    const ref = doc(db, 'users', userId, 'projects', projectId);
+    const ref = doc(db, 'users', userId, 'blueprint', projectId);
     await deleteDoc(ref);
     return { success: true };
   } catch (error) {
