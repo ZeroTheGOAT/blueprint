@@ -1600,8 +1600,24 @@ function initMobile() {
       canvas.undo();
     }
   });
+
+  document.getElementById('btn-undo')?.addEventListener('click', () => {
+    if (currentMode === '2d-platformer' && platformerCanvas) {
+      platformerCanvas.undo();
+    } else {
+      canvas.undo();
+    }
+  });
   
   document.getElementById('fab-redo')?.addEventListener('click', () => {
+    if (currentMode === '2d-platformer' && platformerCanvas) {
+      platformerCanvas.redo();
+    } else {
+      canvas.redo();
+    }
+  });
+
+  document.getElementById('btn-redo')?.addEventListener('click', () => {
     if (currentMode === '2d-platformer' && platformerCanvas) {
       platformerCanvas.redo();
     } else {
