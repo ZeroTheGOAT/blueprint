@@ -94,12 +94,15 @@ export class PlatformerCanvas {
   }
 
   centerView() {
-    // Center on the middle of the grid
-    const gridPixelW = this.gridWidth * this.tileSize;
-    const gridPixelH = this.gridHeight * this.tileSize;
-    this.zoom = 0.5;
-    this.panX = (this.canvasWidth - gridPixelW * this.zoom) / 2;
-    this.panY = (this.canvasHeight - gridPixelH * this.zoom) / 2;
+    if (!this.canvasWidth || !this.canvasHeight) return;
+    // Show a 30x20 tile area at the center of the grid initially
+    this.zoom = Math.min(this.canvasWidth / (30 * this.tileSize), this.canvasHeight / (20 * this.tileSize));
+    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom));
+    // Pan so the center of the grid is at the center of the screen
+    const gridCenterX = (this.gridWidth * this.tileSize) / 2;
+    const gridCenterY = (this.gridHeight * this.tileSize) / 2;
+    this.panX = this.canvasWidth / 2 - gridCenterX * this.zoom;
+    this.panY = this.canvasHeight / 2 - gridCenterY * this.zoom;
     this.render();
   }
 

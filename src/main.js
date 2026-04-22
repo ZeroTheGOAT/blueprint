@@ -276,7 +276,13 @@ function switchMode(mode) {
     propsPanel?.classList.add('hidden');
     platSidebar?.classList.remove('hidden');
     platCanvas?.classList.remove('hidden');
-    if (platformerCanvas) platformerCanvas.resize();
+    // Delay resize so the container has actual dimensions after display change
+    requestAnimationFrame(() => {
+      if (platformerCanvas) {
+        platformerCanvas.resize();
+        platformerCanvas.centerView();
+      }
+    });
   } else {
     platSidebar?.classList.add('hidden');
     platCanvas?.classList.add('hidden');
