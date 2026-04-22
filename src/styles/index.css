@@ -833,6 +833,21 @@ button {
   font-size: 13px;
   color: var(--text-secondary);
   user-select: none;
+  touch-action: none;
+}
+
+.node-palette-item:active {
+  cursor: grabbing;
+}
+
+.drag-ghost {
+  box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent-primary);
+  opacity: 0.8;
+  transform: scale(1.05);
+  pointer-events: none;
+  background: var(--bg-elevated) !important;
+  border-color: var(--accent-primary) !important;
+  z-index: 9999;
 }
 
 .node-palette-item:hover {
@@ -867,6 +882,7 @@ button {
   top: 0;
   left: 0;
   cursor: default;
+  touch-action: none;
 }
 
 #canvas-info {

@@ -428,7 +428,6 @@ function initSidebar() {
           <span class="node-color-dot" style="background:${node.color}"></span>
           <span>${node.icon} ${node.label}</span>
         `;
-        item.draggable = true;
         
         // Double-click to add at center
         item.addEventListener('dblclick', () => {
@@ -436,10 +435,64 @@ function initSidebar() {
           showToast(`Added ${node.label} node`, 'success', 1500);
         });
         
-        // Drag to add
-        item.addEventListener('dragstart', (e) => {
-          e.dataTransfer.setData('node-type', node.key);
-          e.dataTransfer.effectAllowed = 'copy';
+        // Custom pointer-based drag-and-drop (works on Touch/Stylus/Mouse)
+        item.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return; // Only left click / primary touch
+          
+          const rect = item.getBoundingClientRect();
+          const offsetX = e.clientX - rect.left;
+          const offsetY = e.clientY - rect.top;
+          
+          // Create ghost
+          const ghost = item.cloneNode(true);
+          ghost.classList.add('drag-ghost');
+          ghost.style.position = 'fixed';
+          ghost.style.left = rect.left + 'px';
+          ghost.style.top = rect.top + 'px';
+          ghost.style.width = rect.width + 'px';
+          ghost.style.pointerEvents = 'none';
+          ghost.style.zIndex = '9999';
+          ghost.style.opacity = '0.8';
+          document.body.appendChild(ghost);
+          
+          const moveGhost = (moveEvent) => {
+            ghost.style.left = (moveEvent.clientX - offsetX) + 'px';
+            ghost.style.top = (moveEvent.clientY - offsetY) + 'px';
+            
+            // Highlight canvas if hovering over it
+            const canvasRect = canvas.canvas.getBoundingClientRect();
+            if (moveEvent.clientX >= canvasRect.left && moveEvent.clientX <= canvasRect.right &&
+                moveEvent.clientY >= canvasRect.top && moveEvent.clientY <= canvasRect.bottom) {
+              canvas.canvas.style.boxShadow = 'inset 0 0 0 2px var(--accent-primary)';
+            } else {
+              canvas.canvas.style.boxShadow = 'none';
+            }
+          };
+          
+          const stopDrag = (upEvent) => {
+            window.removeEventListener('pointermove', moveGhost);
+            window.removeEventListener('pointerup', stopDrag);
+            document.body.removeChild(ghost);
+            canvas.canvas.style.boxShadow = 'none';
+            
+            const canvasRect = canvas.canvas.getBoundingClientRect();
+            if (upEvent.clientX >= canvasRect.left && upEvent.clientX <= canvasRect.right &&
+                upEvent.clientY >= canvasRect.top && upEvent.clientY <= canvasRect.bottom) {
+              
+              const sx = upEvent.clientX - canvasRect.left;
+              const sy = upEvent.clientY - canvasRect.top;
+              const { x, y } = canvas.screenToWorld(sx, sy);
+              
+              canvas.addNode(node.key, 
+                canvas.snapToGrid ? Math.round(x / canvas.gridSize) * canvas.gridSize : x,
+                canvas.snapToGrid ? Math.round(y / canvas.gridSize) * canvas.gridSize : y
+              );
+              showToast(`Added ${node.label}`, 'success', 1500);
+            }
+          };
+          
+          window.addEventListener('pointermove', moveGhost);
+          window.addEventListener('pointerup', stopDrag);
         });
         
         items.appendChild(item);
@@ -455,30 +508,6 @@ function initSidebar() {
   
   searchInput.addEventListener('input', () => {
     renderPalette(searchInput.value);
-  });
-  
-  // Canvas drop handler
-  const canvasContainer = document.getElementById('canvas-container');
-  canvasContainer.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  });
-  
-  canvasContainer.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const nodeType = e.dataTransfer.getData('node-type');
-    if (!nodeType) return;
-    
-    const rect = canvas.canvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-    const { x, y } = canvas.screenToWorld(sx, sy);
-    
-    canvas.addNode(nodeType, 
-      canvas.snapToGrid ? Math.round(x / canvas.gridSize) * canvas.gridSize : x,
-      canvas.snapToGrid ? Math.round(y / canvas.gridSize) * canvas.gridSize : y
-    );
-    showToast(`Added ${NODE_TYPES[nodeType]?.label || 'node'}`, 'success', 1500);
   });
 }
 

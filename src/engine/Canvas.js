@@ -84,10 +84,13 @@ export class BlueprintCanvas {
   // ============================
 
   setupEventListeners() {
-    // Mouse events
-    this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
-    this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
-    this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+    // Pointer events (handles Mouse, Touch, and Stylus/Pen)
+    this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+    this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
+    this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
+    this.canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e));
+    this.canvas.style.touchAction = 'none'; // Prevent browser gestures
+    
     this.canvas.addEventListener('wheel', (e) => this.onWheel(e), { passive: false });
     this.canvas.addEventListener('dblclick', (e) => this.onDoubleClick(e));
     this.canvas.addEventListener('contextmenu', (e) => {
@@ -95,9 +98,9 @@ export class BlueprintCanvas {
       this.handleContextMenu(e);
     });
     
-    // Touch events
-    this.touchState = {
-      touches: [],
+    // Pointer/Multi-touch state
+    this.pointers = new Map(); // Track active pointers for multi-touch
+    this.pointerState = {
       lastTapTime: 0,
       lastTapX: 0,
       lastTapY: 0,
@@ -106,16 +109,10 @@ export class BlueprintCanvas {
       initialPinchDist: 0,
       initialPinchZoom: 1,
       initialPinchCenter: { x: 0, y: 0 },
-      singleTouchStart: null,
-      isTouchDragging: false,
-      isTouchPanning: false,
-      touchStartedOnNode: false
+      isDragging: false,
+      isPanning: false,
+      startedOnNode: false
     };
-    
-    this.canvas.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
-    this.canvas.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: false });
-    this.canvas.addEventListener('touchend', (e) => this.onTouchEnd(e), { passive: false });
-    this.canvas.addEventListener('touchcancel', (e) => this.onTouchEnd(e), { passive: false });
     
     // Keyboard
     window.addEventListener('keydown', (e) => this.onKeyDown(e));
@@ -129,50 +126,56 @@ export class BlueprintCanvas {
   // Touch Handlers
   // ============================
 
-  onTouchStart(e) {
-    e.preventDefault();
-    const touches = e.touches;
+  onPointerDown(e) {
+    this.pointers.set(e.pointerId, e);
     const rect = this.canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const { x: wx, y: wy } = this.screenToWorld(sx, sy);
     
-    if (touches.length === 2) {
-      // Two-finger: pinch-zoom or pan
+    this.canvas.setPointerCapture(e.pointerId);
+
+    // Multi-touch pinch start
+    if (this.pointers.size === 2) {
       this.cancelLongPress();
-      this.touchState.isPinching = true;
-      this.touchState.isTouchDragging = false;
+      this.pointerState.isPinching = true;
       this.isDragging = false;
       this.isConnecting = false;
       
-      const dx = touches[1].clientX - touches[0].clientX;
-      const dy = touches[1].clientY - touches[0].clientY;
-      this.touchState.initialPinchDist = Math.hypot(dx, dy);
-      this.touchState.initialPinchZoom = this.zoom;
-      this.touchState.initialPinchCenter = {
-        x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left,
-        y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top
+      const pts = Array.from(this.pointers.values());
+      const dx = pts[1].clientX - pts[0].clientX;
+      const dy = pts[1].clientY - pts[0].clientY;
+      this.pointerState.initialPinchDist = Math.hypot(dx, dy);
+      this.pointerState.initialPinchZoom = this.zoom;
+      this.pointerState.initialPinchCenter = {
+        x: (pts[0].clientX + pts[1].clientX) / 2 - rect.left,
+        y: (pts[0].clientY + pts[1].clientY) / 2 - rect.top
       };
-      this.touchState.lastPinchCenter = { ...this.touchState.initialPinchCenter };
+      this.pointerState.lastPinchCenter = { ...this.pointerState.initialPinchCenter };
       return;
     }
-    
-    if (touches.length === 1) {
-      const sx = touches[0].clientX - rect.left;
-      const sy = touches[0].clientY - rect.top;
-      const { x: wx, y: wy } = this.screenToWorld(sx, sy);
-      
-      this.touchState.singleTouchStart = { sx, sy, wx, wy, time: Date.now() };
-      
-      // Check if touching a port
+
+    if (this.pointers.size === 1) {
+      // Middle mouse or Space + Left → Pan
+      if (e.button === 1 || (e.button === 0 && this.spaceHeld)) {
+        this.isPanning = true;
+        this.dragStartX = e.clientX;
+        this.dragStartY = e.clientY;
+        this.canvas.style.cursor = 'grabbing';
+        return;
+      }
+
+      // Check port hit
       const nodes = this.graph.getAllNodes();
       for (let i = nodes.length - 1; i >= 0; i--) {
         const portHit = nodes[i].hitTestPort(wx, wy);
         if (portHit) {
           this.startConnection(nodes[i], portHit);
-          this.touchState.touchStartedOnNode = true;
           return;
         }
       }
-      
-      // Check if touching a node
+
+      // Check node hit
       let hitNode = null;
       for (let i = nodes.length - 1; i >= 0; i--) {
         if (nodes[i].hitTest(wx, wy)) {
@@ -180,215 +183,207 @@ export class BlueprintCanvas {
           break;
         }
       }
-      
+
       if (hitNode) {
-        this.touchState.touchStartedOnNode = true;
-        this.touchState.hitNode = hitNode;
+        this.pointerState.startedOnNode = true;
         
-        // Don't select/open properties yet — wait for touchEnd to determine if it's tap vs drag
-        // Just visually highlight the node for feedback
-        hitNode.selected = true;
-        this.selectedNodes.add(hitNode.id);
+        // Handle collapse arrow
+        if (hitNode.hitTestHeader(wx, wy)) {
+          const arrowX = hitNode.x + hitNode.width - 18;
+          if (Math.abs(wx - arrowX) < 12 && Math.abs(wy - (hitNode.y + hitNode.headerHeight / 2)) < 12) {
+            hitNode.collapsed = !hitNode.collapsed;
+            hitNode.computeHeight();
+            this.pushHistory();
+            this.render();
+            return;
+          }
+        }
+
+        if (!e.shiftKey && !this.selectedNodes.has(hitNode.id)) {
+          this.clearSelection();
+        }
+        this.selectNode(hitNode.id);
         
-        // Prepare dragging
-        this.touchState.isTouchDragging = false; // Will become true on move
+        this.isDragging = true;
         this.dragStartX = wx;
         this.dragStartY = wy;
-        this.dragNodes = [hitNode, ...this.getSelectedNodes().filter(n => n !== hitNode)].map(n => ({
+        this.dragNodes = this.getSelectedNodes().map(n => ({
           node: n,
           startX: n.x,
           startY: n.y
         }));
         
-        // Move to top
+        // Reorder
         this.graph.nodes.delete(hitNode.id);
         this.graph.nodes.set(hitNode.id, hitNode);
         
-        // Long press for context menu
-        this.startLongPress(touches[0].clientX, touches[0].clientY, wx, wy, hitNode);
+        // Long press for stylus/touch context menu
+        if (e.pointerType !== 'mouse') {
+          this.startLongPress(e.clientX, e.clientY, wx, wy, hitNode);
+        }
       } else {
-        // Touching empty canvas — prepare for pan
-        this.touchState.touchStartedOnNode = false;
-        this.touchState.isTouchPanning = false; // Will become true on move
-        this.dragStartX = touches[0].clientX;
-        this.dragStartY = touches[0].clientY;
+        // Empty canvas
+        if (!e.shiftKey) this.clearSelection();
         
-        this.clearSelection();
+        // If left click, start selection rect
+        if (e.button === 0) {
+          this.isSelecting = true;
+          this.selectionRect = { x: wx, y: wy, w: 0, h: 0 };
+          this.dragStartX = wx;
+          this.dragStartY = wy;
+        }
         
-        // Long press for canvas context menu
-        this.startLongPress(touches[0].clientX, touches[0].clientY, wx, wy, null);
+        if (e.pointerType !== 'mouse') {
+          this.startLongPress(e.clientX, e.clientY, wx, wy, null);
+        }
       }
     }
   }
 
-  onTouchMove(e) {
-    e.preventDefault();
-    const touches = e.touches;
+  onPointerMove(e) {
+    if (!this.pointers.has(e.pointerId)) return;
+    this.pointers.set(e.pointerId, e);
+    
     const rect = this.canvas.getBoundingClientRect();
-    
-    // Cancel long press on any move
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+    const { x: wx, y: wy } = this.screenToWorld(sx, sy);
+
     this.cancelLongPress();
-    
-    if (touches.length === 2 && this.touchState.isPinching) {
-      // Pinch zoom + two-finger pan
-      const dx = touches[1].clientX - touches[0].clientX;
-      const dy = touches[1].clientY - touches[0].clientY;
+
+    // Pinch zoom
+    if (this.pointerState.isPinching && this.pointers.size === 2) {
+      const pts = Array.from(this.pointers.values());
+      const dx = pts[1].clientX - pts[0].clientX;
+      const dy = pts[1].clientY - pts[0].clientY;
       const dist = Math.hypot(dx, dy);
       
       const center = {
-        x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left,
-        y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top
+        x: (pts[0].clientX + pts[1].clientX) / 2 - rect.left,
+        y: (pts[0].clientY + pts[1].clientY) / 2 - rect.top
       };
       
-      // Zoom
-      const scale = dist / this.touchState.initialPinchDist;
-      const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.touchState.initialPinchZoom * scale));
+      const scale = dist / this.pointerState.initialPinchDist;
+      const newZoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.pointerState.initialPinchZoom * scale));
       
       const factor = newZoom / this.zoom;
       this.panX = center.x - (center.x - this.panX) * factor;
       this.panY = center.y - (center.y - this.panY) * factor;
       this.zoom = newZoom;
       
-      // Pan (two-finger drag)
-      this.panX += center.x - this.touchState.lastPinchCenter.x;
-      this.panY += center.y - this.touchState.lastPinchCenter.y;
-      this.touchState.lastPinchCenter = center;
+      this.panX += center.x - this.pointerState.lastPinchCenter.x;
+      this.panY += center.y - this.pointerState.lastPinchCenter.y;
+      this.pointerState.lastPinchCenter = center;
       
       this.updateZoomDisplay();
       this.render();
       return;
     }
+
+    if (this.isPanning) {
+      this.panX += e.clientX - this.dragStartX;
+      this.panY += e.clientY - this.dragStartY;
+      this.dragStartX = e.clientX;
+      this.dragStartY = e.clientY;
+      this.render();
+      return;
+    }
+
+    if (this.isDragging) {
+      const dx = wx - this.dragStartX;
+      const dy = wy - this.dragStartY;
+      this.dragNodes.forEach(({ node, startX, startY }) => {
+        let nx = startX + dx;
+        let ny = startY + dy;
+        if (this.snapToGrid) {
+          nx = Math.round(nx / this.gridSize) * this.gridSize;
+          ny = Math.round(ny / this.gridSize) * this.gridSize;
+        }
+        node.x = nx;
+        node.y = ny;
+      });
+      this.notifyGraphChanged();
+      this.render();
+      return;
+    }
+
+    if (this.isConnecting) {
+      this.connectMouseX = wx;
+      this.connectMouseY = wy;
+      this.render();
+      return;
+    }
+
+    if (this.isSelecting && this.selectionRect) {
+      this.selectionRect.w = wx - this.dragStartX;
+      this.selectionRect.h = wy - this.dragStartY;
+      this.render();
+      return;
+    }
+
+    // Default hover
+    let hoveredNode = null;
+    const nodes = this.graph.getAllNodes();
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      if (nodes[i].hitTest(wx, wy)) {
+        hoveredNode = nodes[i];
+        break;
+      }
+    }
     
-    if (touches.length === 1) {
-      const sx = touches[0].clientX - rect.left;
-      const sy = touches[0].clientY - rect.top;
-      const { x: wx, y: wy } = this.screenToWorld(sx, sy);
-      
-      // Connecting
-      if (this.isConnecting) {
-        this.connectMouseX = wx;
-        this.connectMouseY = wy;
-        this.render();
-        return;
-      }
-      
-      if (this.touchState.touchStartedOnNode && this.dragNodes.length > 0) {
-        // Dragging node
-        this.touchState.isTouchDragging = true;
-        this.isDragging = true;
-        const dxw = wx - this.dragStartX;
-        const dyw = wy - this.dragStartY;
-        this.dragNodes.forEach(({ node, startX, startY }) => {
-          let newX = startX + dxw;
-          let newY = startY + dyw;
-          if (this.snapToGrid) {
-            newX = Math.round(newX / this.gridSize) * this.gridSize;
-            newY = Math.round(newY / this.gridSize) * this.gridSize;
-          }
-          node.x = newX;
-          node.y = newY;
-        });
-        this.notifyGraphChanged();
-        this.render();
-      } else {
-        // Panning canvas
-        this.touchState.isTouchPanning = true;
-        this.panX += touches[0].clientX - this.dragStartX;
-        this.panY += touches[0].clientY - this.dragStartY;
-        this.dragStartX = touches[0].clientX;
-        this.dragStartY = touches[0].clientY;
-        this.render();
-      }
+    if (this.hoveredNode !== hoveredNode) {
+      this.hoveredNode = hoveredNode;
+      this.render();
     }
   }
 
-  onTouchEnd(e) {
-    e.preventDefault();
+  onPointerUp(e) {
+    this.pointers.delete(e.pointerId);
+    this.canvas.releasePointerCapture(e.pointerId);
     this.cancelLongPress();
-    
-    const rect = this.canvas.getBoundingClientRect();
-    
-    if (this.touchState.isPinching) {
-      this.touchState.isPinching = false;
-      if (e.touches.length === 1) {
-        // Transition from pinch to single touch pan
-        this.dragStartX = e.touches[0].clientX;
-        this.dragStartY = e.touches[0].clientY;
-        this.touchState.touchStartedOnNode = false;
-      }
+
+    if (this.pointerState.isPinching) {
+      if (this.pointers.size === 0) this.pointerState.isPinching = false;
       return;
     }
-    
-    // Finish connection
-    if (this.isConnecting && e.touches.length === 0) {
-      const changedTouch = e.changedTouches[0];
-      if (changedTouch) {
-        const sx = changedTouch.clientX - rect.left;
-        const sy = changedTouch.clientY - rect.top;
-        const { x: wx, y: wy } = this.screenToWorld(sx, sy);
-        this.finishConnection(wx, wy);
-      } else {
-        this.isConnecting = false;
-        this.connectFromNode = null;
-        this.connectFromPort = null;
-        this.render();
-      }
+
+    if (this.isPanning) {
+      this.isPanning = false;
+      this.canvas.style.cursor = this.spaceHeld ? 'grab' : 'default';
       return;
     }
-    
-    if (this.isDragging || this.touchState.isTouchDragging) {
+
+    if (this.isDragging) {
       this.isDragging = false;
-      this.touchState.isTouchDragging = false;
       this.pushHistory();
-      // Don't notify selection — it was a drag, not a tap
-      this.touchState.hitNode = null;
-      this.touchState.isTouchPanning = false;
-      this.touchState.singleTouchStart = null;
-      this.touchState.touchStartedOnNode = false;
+      this.notifySelectionChanged();
       this.render();
       return;
     }
-    
-    // It was a tap on a node (not a drag) — now open properties
-    if (this.touchState.hitNode && e.touches.length === 0) {
+
+    if (this.isConnecting) {
+      const rect = this.canvas.getBoundingClientRect();
+      const { x: wx, y: wy } = this.screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+      this.finishConnection(wx, wy);
+      return;
+    }
+
+    if (this.isSelecting && this.selectionRect) {
+      this.finishSelection();
+      return;
+    }
+
+    // Tap logic (for non-drag clicks)
+    if (this.pointerState.startedOnNode && !this.isDragging) {
       this.notifySelectionChanged();
       this.render();
     }
-    this.touchState.hitNode = null;
-    
-    // Check for double-tap
-    if (e.touches.length === 0 && this.touchState.singleTouchStart) {
-      const now = Date.now();
-      const start = this.touchState.singleTouchStart;
-      const dt = now - this.touchState.lastTapTime;
-      const dx = Math.abs(start.sx - this.touchState.lastTapX);
-      const dy = Math.abs(start.sy - this.touchState.lastTapY);
-      
-      if (dt < 400 && dx < 30 && dy < 30) {
-        // Double tap!
-        const nodes = this.graph.getAllNodes();
-        for (let i = nodes.length - 1; i >= 0; i--) {
-          if (nodes[i].hitTestHeader(start.wx, start.wy)) {
-            this.editNodeTitle(nodes[i]);
-            break;
-          }
-        }
-        this.touchState.lastTapTime = 0;
-      } else {
-        this.touchState.lastTapTime = now;
-        this.touchState.lastTapX = start.sx;
-        this.touchState.lastTapY = start.sy;
-      }
-    }
-    
-    this.touchState.isTouchPanning = false;
-    this.touchState.singleTouchStart = null;
-    this.touchState.touchStartedOnNode = false;
+    this.pointerState.startedOnNode = false;
   }
 
   startLongPress(clientX, clientY, wx, wy, node) {
     this.cancelLongPress();
-    this.touchState.longPressTimer = setTimeout(() => {
+    this.pointerState.longPressTimer = setTimeout(() => {
       // Vibrate on supported devices
       if (navigator.vibrate) navigator.vibrate(30);
       
@@ -404,14 +399,14 @@ export class BlueprintCanvas {
       }
       
       // Prevent subsequent drag
-      this.touchState.touchStartedOnNode = false;
+      this.pointerState.startedOnNode = false;
     }, 600);
   }
 
   cancelLongPress() {
-    if (this.touchState.longPressTimer) {
-      clearTimeout(this.touchState.longPressTimer);
-      this.touchState.longPressTimer = null;
+    if (this.pointerState.longPressTimer) {
+      clearTimeout(this.pointerState.longPressTimer);
+      this.pointerState.longPressTimer = null;
     }
   }
 
@@ -447,202 +442,8 @@ export class BlueprintCanvas {
     };
   }
 
-  // ============================
-  // Mouse Handlers
-  // ============================
+  // Legacy mouse handlers removed - replaced by pointer handlers above.
 
-  onMouseDown(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-    const { x: wx, y: wy } = this.screenToWorld(sx, sy);
-    
-    // Middle mouse button or space held → pan
-    if (e.button === 1 || (e.button === 0 && this.spaceHeld)) {
-      this.isPanning = true;
-      this.dragStartX = e.clientX;
-      this.dragStartY = e.clientY;
-      this.canvas.style.cursor = 'grabbing';
-      e.preventDefault();
-      return;
-    }
-    
-    // Left click
-    if (e.button === 0) {
-      // Check port hit first
-      const nodes = this.graph.getAllNodes();
-      for (let i = nodes.length - 1; i >= 0; i--) {
-        const node = nodes[i];
-        const portHit = node.hitTestPort(wx, wy);
-        if (portHit) {
-          this.startConnection(node, portHit);
-          return;
-        }
-      }
-      
-      // Check node hit
-      let hitNode = null;
-      for (let i = nodes.length - 1; i >= 0; i--) {
-        if (nodes[i].hitTest(wx, wy)) {
-          hitNode = nodes[i];
-          break;
-        }
-      }
-      
-      if (hitNode) {
-        // Check for collapse toggle (click on header arrow)
-        if (hitNode.hitTestHeader(wx, wy)) {
-          const arrowX = hitNode.x + hitNode.width - 18;
-          if (Math.abs(wx - arrowX) < 12 && Math.abs(wy - (hitNode.y + hitNode.headerHeight / 2)) < 12) {
-            hitNode.collapsed = !hitNode.collapsed;
-            hitNode.computeHeight();
-            this.pushHistory();
-            this.render();
-            return;
-          }
-        }
-        
-        // Node selection
-        if (!e.shiftKey && !this.selectedNodes.has(hitNode.id)) {
-          this.clearSelection();
-        }
-        this.selectNode(hitNode.id);
-        
-        // Start dragging
-        this.isDragging = true;
-        this.dragStartX = wx;
-        this.dragStartY = wy;
-        this.dragNodes = this.getSelectedNodes().map(n => ({
-          node: n,
-          startX: n.x,
-          startY: n.y
-        }));
-        
-        // Move to top (reorder)
-        this.graph.nodes.delete(hitNode.id);
-        this.graph.nodes.set(hitNode.id, hitNode);
-      } else {
-        // Canvas click — start selection rect or deselect
-        if (!e.shiftKey) {
-          this.clearSelection();
-        }
-        this.isSelecting = true;
-        this.selectionRect = { x: wx, y: wy, w: 0, h: 0 };
-        this.dragStartX = wx;
-        this.dragStartY = wy;
-      }
-    }
-  }
-
-  onMouseMove(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-    const { x: wx, y: wy } = this.screenToWorld(sx, sy);
-    
-    // Panning
-    if (this.isPanning) {
-      this.panX += e.clientX - this.dragStartX;
-      this.panY += e.clientY - this.dragStartY;
-      this.dragStartX = e.clientX;
-      this.dragStartY = e.clientY;
-      this.render();
-      return;
-    }
-    
-    // Node dragging
-    if (this.isDragging) {
-      const dx = wx - this.dragStartX;
-      const dy = wy - this.dragStartY;
-      this.dragNodes.forEach(({ node, startX, startY }) => {
-        let newX = startX + dx;
-        let newY = startY + dy;
-        if (this.snapToGrid) {
-          newX = Math.round(newX / this.gridSize) * this.gridSize;
-          newY = Math.round(newY / this.gridSize) * this.gridSize;
-        }
-        node.x = newX;
-        node.y = newY;
-      });
-      this.notifyGraphChanged();
-      this.render();
-      return;
-    }
-    
-    // Connecting
-    if (this.isConnecting) {
-      this.connectMouseX = wx;
-      this.connectMouseY = wy;
-      this.render();
-      return;
-    }
-    
-    // Selection rect
-    if (this.isSelecting && this.selectionRect) {
-      this.selectionRect.w = wx - this.dragStartX;
-      this.selectionRect.h = wy - this.dragStartY;
-      this.render();
-      return;
-    }
-    
-    // Hover detection
-    let hoveredNode = null;
-    const nodes = this.graph.getAllNodes();
-    for (let i = nodes.length - 1; i >= 0; i--) {
-      if (nodes[i].hitTest(wx, wy)) {
-        hoveredNode = nodes[i];
-        break;
-      }
-    }
-    
-    // Check for port hover
-    let onPort = false;
-    if (hoveredNode) {
-      const portHit = hoveredNode.hitTestPort(wx, wy);
-      if (portHit) {
-        onPort = true;
-        this.canvas.style.cursor = 'crosshair';
-      }
-    }
-    
-    if (!onPort) {
-      this.canvas.style.cursor = this.spaceHeld ? 'grab' : 'default';
-    }
-    
-    if (this.hoveredNode !== hoveredNode) {
-      this.hoveredNode = hoveredNode;
-      this.render();
-    }
-  }
-
-  onMouseUp(e) {
-    const rect = this.canvas.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-    const { x: wx, y: wy } = this.screenToWorld(sx, sy);
-    
-    if (this.isPanning) {
-      this.isPanning = false;
-      this.canvas.style.cursor = this.spaceHeld ? 'grab' : 'default';
-      return;
-    }
-    
-    if (this.isDragging) {
-      this.isDragging = false;
-      this.pushHistory();
-      return;
-    }
-    
-    if (this.isConnecting) {
-      this.finishConnection(wx, wy);
-      return;
-    }
-    
-    if (this.isSelecting && this.selectionRect) {
-      this.finishSelection();
-      return;
-    }
-  }
 
   onWheel(e) {
     e.preventDefault();
