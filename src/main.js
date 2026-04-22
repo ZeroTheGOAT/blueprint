@@ -30,6 +30,7 @@ import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJS
 let canvas = null;
 let platformerCanvas = null;
 let currentMode = '3d-story';
+let projectFilterMode = 'all';
 let currentUser = null;
 let currentProjectId = null;
 let currentProjectOwnerId = null;
@@ -1221,6 +1222,12 @@ function initProjectModal() {
       showProjectModal(e.target.dataset.tab);
     });
   });
+
+  document.getElementById('project-filter-switcher')?.addEventListener('change', (e) => {
+    projectFilterMode = e.target.value;
+    const activeTab = document.querySelector('.project-tab.active')?.dataset.tab || 'my-projects';
+    showProjectModal(activeTab);
+  });
 }
 
 async function showProjectModal(mode = 'my-projects') {
@@ -1246,18 +1253,25 @@ async function showProjectModal(mode = 'my-projects') {
     return;
   }
   
-  if (projects.length === 0) {
+  let filteredProjects = projects;
+  if (projectFilterMode === '2d-platformer') {
+    filteredProjects = projects.filter(p => p.graphData?.type === 'platformer2d');
+  } else if (projectFilterMode === '3d-story') {
+    filteredProjects = projects.filter(p => p.graphData?.type !== 'platformer2d');
+  }
+
+  if (filteredProjects.length === 0) {
     list.innerHTML = `
       <div class="empty-projects">
-        <p>No projects yet</p>
-        <small>Create your first blueprint project!</small>
+        <p>${projects.length === 0 ? 'No projects yet' : 'No projects match your filter'}</p>
+        <small>${projects.length === 0 ? 'Create your first blueprint project!' : 'Try changing the type filter.'}</small>
       </div>
     `;
     return;
   }
   
   list.innerHTML = '';
-  projects.forEach(proj => {
+  filteredProjects.forEach(proj => {
     const item = document.createElement('div');
     item.className = `project-item ${proj.id === currentProjectId ? 'active' : ''}`;
     
