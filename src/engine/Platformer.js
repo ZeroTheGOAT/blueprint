@@ -70,6 +70,11 @@ export class PlatformerCanvas {
     this.dragStartX = 0;
     this.dragStartY = 0;
     
+    // History
+    this.history = [];
+    this.historyIndex = -1;
+    this.hasModificationsInStroke = false;
+    
     // Selected tool
     this.currentTool = 'floor'; // default tile type
     
@@ -147,6 +152,7 @@ export class PlatformerCanvas {
       // We wait until onPointerMove confirms it's a single-finger drag,
       // or onPointerUp confirms it's a single tap.
       if (e.button === 0) {
+        this.hasModificationsInStroke = false;
         if (e.pointerType === 'touch') {
           // Touch: defer to avoid placing tile before second finger arrives
           this.pendingPaint = e;
@@ -254,6 +260,12 @@ export class PlatformerCanvas {
       this.paintConfirmed = false;
     }
     
+    if (this.hasModificationsInStroke) {
+      this.pushHistory();
+      if (window.markDirty) window.markDirty();
+      this.hasModificationsInStroke = false;
+    }
+    
     if (this.isPanning) {
       this.isPanning = false;
       this.canvas.style.cursor = this.spaceHeld ? 'grab' : 'default';
@@ -288,6 +300,18 @@ export class PlatformerCanvas {
         this.canvas.style.cursor = 'grab';
       }
     }
+    
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'z') {
+        e.preventDefault();
+        this.undo();
+      } else if (e.key === 'y') {
+        e.preventDefault();
+        this.redo();
+      }
+    }
   }
 
   onKeyUp(e) {
@@ -318,6 +342,7 @@ export class PlatformerCanvas {
     const key = `${gx},${gy}`;
     if (this.tiles.get(key) !== this.currentTool) {
       this.tiles.set(key, this.currentTool);
+      this.hasModificationsInStroke = true;
       this.render();
     }
   }
@@ -327,6 +352,7 @@ export class PlatformerCanvas {
     const key = `${gx},${gy}`;
     if (this.tiles.has(key)) {
       this.tiles.delete(key);
+      this.hasModificationsInStroke = true;
       this.render();
     }
   }
@@ -372,7 +398,52 @@ export class PlatformerCanvas {
         this.tiles.set(k, v);
       }
     }
+    this.history = [];
+    this.historyIndex = -1;
+    this.pushHistory();
     this.render();
+  }
+
+  pushHistory() {
+    if (this.historyIndex < this.history.length - 1) {
+      this.history = this.history.slice(0, this.historyIndex + 1);
+    }
+    const tilesObj = {};
+    for (const [k, v] of this.tiles.entries()) {
+      tilesObj[k] = v;
+    }
+    this.history.push(JSON.stringify(tilesObj));
+    if (this.history.length > 50) {
+      this.history.shift();
+    } else {
+      this.historyIndex++;
+    }
+  }
+
+  undo() {
+    if (this.historyIndex > 0) {
+      this.historyIndex--;
+      const state = JSON.parse(this.history[this.historyIndex]);
+      this.tiles.clear();
+      for (const [k, v] of Object.entries(state)) {
+        this.tiles.set(k, v);
+      }
+      this.render();
+      if (window.markDirty) window.markDirty();
+    }
+  }
+
+  redo() {
+    if (this.historyIndex < this.history.length - 1) {
+      this.historyIndex++;
+      const state = JSON.parse(this.history[this.historyIndex]);
+      this.tiles.clear();
+      for (const [k, v] of Object.entries(state)) {
+        this.tiles.set(k, v);
+      }
+      this.render();
+      if (window.markDirty) window.markDirty();
+    }
   }
 
   render() {

@@ -1594,11 +1594,19 @@ function initMobile() {
   });
   
   document.getElementById('fab-undo')?.addEventListener('click', () => {
-    canvas.undo();
+    if (currentMode === '2d-platformer' && platformerCanvas) {
+      platformerCanvas.undo();
+    } else {
+      canvas.undo();
+    }
   });
   
   document.getElementById('fab-redo')?.addEventListener('click', () => {
-    canvas.redo();
+    if (currentMode === '2d-platformer' && platformerCanvas) {
+      platformerCanvas.redo();
+    } else {
+      canvas.redo();
+    }
   });
   
   document.getElementById('fab-fit')?.addEventListener('click', () => {
