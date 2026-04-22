@@ -437,9 +437,8 @@ function initSidebar() {
         
         // Custom pointer-based drag-and-drop (works on Touch/Stylus/Mouse)
         item.addEventListener('pointerdown', (e) => {
-          if (e.button !== 0) return; // Only left click / primary touch
-          e.preventDefault(); // Prevent text selection and scrolling
-          item.setPointerCapture(e.pointerId);
+          if (e.button !== 0) return;
+          e.preventDefault();
           
           const startX = e.clientX;
           const startY = e.clientY;
@@ -448,64 +447,43 @@ function initSidebar() {
           const offsetY = e.clientY - rect.top;
           let ghost = null;
           let hasMoved = false;
-          const DRAG_THRESHOLD = 8; // Pixels before drag starts
           
-          const moveGhost = (moveEvent) => {
-            const dx = moveEvent.clientX - startX;
-            const dy = moveEvent.clientY - startY;
+          const onMove = (me) => {
+            me.preventDefault();
+            const dx = me.clientX - startX;
+            const dy = me.clientY - startY;
             
-            // Don't start drag until we've moved beyond threshold
-            if (!hasMoved && Math.abs(dx) < DRAG_THRESHOLD && Math.abs(dy) < DRAG_THRESHOLD) {
-              return;
-            }
+            if (!hasMoved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return;
             
             if (!hasMoved) {
               hasMoved = true;
-              // Create ghost only once when drag threshold is met
               ghost = item.cloneNode(true);
               ghost.classList.add('drag-ghost');
-              ghost.style.position = 'fixed';
-              ghost.style.width = rect.width + 'px';
-              ghost.style.pointerEvents = 'none';
-              ghost.style.zIndex = '9999';
-              ghost.style.opacity = '0.85';
+              ghost.style.cssText = `position:fixed;width:${rect.width}px;pointer-events:none;z-index:9999;opacity:0.85;`;
               document.body.appendChild(ghost);
             }
             
-            ghost.style.left = (moveEvent.clientX - offsetX) + 'px';
-            ghost.style.top = (moveEvent.clientY - offsetY) + 'px';
+            ghost.style.left = (me.clientX - offsetX) + 'px';
+            ghost.style.top = (me.clientY - offsetY) + 'px';
             
-            // Highlight canvas if hovering over it
-            const canvasRect = canvas.canvas.getBoundingClientRect();
-            if (moveEvent.clientX >= canvasRect.left && moveEvent.clientX <= canvasRect.right &&
-                moveEvent.clientY >= canvasRect.top && moveEvent.clientY <= canvasRect.bottom) {
-              canvas.canvas.style.boxShadow = 'inset 0 0 0 2px var(--accent-primary)';
-            } else {
-              canvas.canvas.style.boxShadow = 'none';
-            }
+            const cr = canvas.canvas.getBoundingClientRect();
+            canvas.canvas.style.boxShadow = 
+              (me.clientX >= cr.left && me.clientX <= cr.right && me.clientY >= cr.top && me.clientY <= cr.bottom)
+                ? 'inset 0 0 0 2px var(--accent-primary)' : 'none';
           };
           
-          const stopDrag = (upEvent) => {
-            item.releasePointerCapture(upEvent.pointerId);
-            item.removeEventListener('pointermove', moveGhost);
-            item.removeEventListener('pointerup', stopDrag);
-            item.removeEventListener('pointercancel', stopDrag);
-            
-            if (ghost) {
-              document.body.removeChild(ghost);
-            }
+          const onUp = (ue) => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+            if (ghost) document.body.removeChild(ghost);
             canvas.canvas.style.boxShadow = 'none';
             
             if (hasMoved) {
-              const canvasRect = canvas.canvas.getBoundingClientRect();
-              if (upEvent.clientX >= canvasRect.left && upEvent.clientX <= canvasRect.right &&
-                  upEvent.clientY >= canvasRect.top && upEvent.clientY <= canvasRect.bottom) {
-                
-                const sx = upEvent.clientX - canvasRect.left;
-                const sy = upEvent.clientY - canvasRect.top;
-                const { x, y } = canvas.screenToWorld(sx, sy);
-                
-                canvas.addNode(node.key, 
+              const cr = canvas.canvas.getBoundingClientRect();
+              if (ue.clientX >= cr.left && ue.clientX <= cr.right && ue.clientY >= cr.top && ue.clientY <= cr.bottom) {
+                const { x, y } = canvas.screenToWorld(ue.clientX - cr.left, ue.clientY - cr.top);
+                canvas.addNode(node.key,
                   canvas.snapToGrid ? Math.round(x / canvas.gridSize) * canvas.gridSize : x,
                   canvas.snapToGrid ? Math.round(y / canvas.gridSize) * canvas.gridSize : y
                 );
@@ -514,9 +492,9 @@ function initSidebar() {
             }
           };
           
-          item.addEventListener('pointermove', moveGhost);
-          item.addEventListener('pointerup', stopDrag);
-          item.addEventListener('pointercancel', stopDrag);
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+          window.addEventListener('pointercancel', onUp);
         });
         
         items.appendChild(item);
