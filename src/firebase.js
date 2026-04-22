@@ -165,11 +165,21 @@ export async function listProjects(userId, userEmail, mode = 'my-projects') {
   try {
     const projects = new Map();
     
-    // Helper to process docs
+    // Helper to process docs — extracts ownerId from doc path as fallback
     const processDocs = (snapshot) => {
-      snapshot.forEach(doc => {
-        if (!projects.has(doc.id)) {
-          projects.set(doc.id, { id: doc.id, ...doc.data() });
+      snapshot.forEach(docSnap => {
+        if (!projects.has(docSnap.id)) {
+          const data = docSnap.data();
+          // Extract ownerId from path: users/{ownerId}/blueprint/{projectId}
+          const pathOwnerId = docSnap.ref.parent.parent?.id || data.ownerId || 'unknown';
+          // Build ownerContact fallback from the data or path
+          const contact = data.ownerContact || pathOwnerId;
+          projects.set(docSnap.id, {
+            id: docSnap.id,
+            ...data,
+            ownerId: data.ownerId || pathOwnerId,
+            ownerContact: contact
+          });
         }
       });
     };
