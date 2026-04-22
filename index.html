@@ -263,7 +263,10 @@
     <div id="project-modal" class="modal-overlay hidden">
       <div class="modal-card project-manager-modal">
         <div class="modal-header">
-          <h2>My Projects</h2>
+          <div class="project-tabs">
+            <button class="project-tab active" data-tab="my-projects">My Projects</button>
+            <button class="project-tab hidden" id="all-projects-tab" data-tab="all-projects">All Projects</button>
+          </div>
           <button class="modal-close" id="close-project-modal">×</button>
         </div>
         <div class="modal-body">

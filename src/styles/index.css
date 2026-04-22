@@ -1373,9 +1373,31 @@ button {
   border-bottom: 1px solid var(--border-primary);
 }
 
-.modal-header h2 {
-  font-size: 18px;
-  font-weight: 700;
+.project-tabs {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.project-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
+  transition: all var(--transition-fast);
+}
+
+.project-tab:hover {
+  color: var(--text-secondary);
+}
+
+.project-tab.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent-primary);
 }
 
 .modal-close {
@@ -1449,6 +1471,13 @@ button {
 
 .project-details {
   flex: 1;
+}
+
+.project-owner-contact {
+  font-size: 11px;
+  color: var(--accent-primary);
+  font-weight: 500;
+  margin-bottom: 4px;
 }
 
 .project-details .project-title {

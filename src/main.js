@@ -951,18 +951,34 @@ function initProjectModal() {
     }
     e.target.value = '';
   });
+
+  // Tab handlers
+  document.querySelectorAll('.project-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      document.querySelectorAll('.project-tab').forEach(t => t.classList.remove('active'));
+      e.target.classList.add('active');
+      showProjectModal(e.target.dataset.tab);
+    });
+  });
 }
 
-async function showProjectModal() {
+async function showProjectModal(mode = 'my-projects') {
   const modal = document.getElementById('project-modal');
   const list = document.getElementById('project-list');
+  const allProjectsTab = document.getElementById('all-projects-tab');
   modal.classList.remove('hidden');
+  
+  if (!currentUser) return;
+
+  if (currentUser.email === 'hariprasadhp637@gmail.com') {
+    allProjectsTab?.classList.remove('hidden');
+  } else {
+    allProjectsTab?.classList.add('hidden');
+  }
   
   list.innerHTML = '<div class="empty-projects"><div class="spinner"></div><p>Loading projects...</p></div>';
   
-  if (!currentUser) return;
-  
-  const { projects, error } = await listProjects(currentUser.uid, currentUser.email);
+  const { projects, error } = await listProjects(currentUser.uid, currentUser.email, mode);
   
   if (error) {
     list.innerHTML = `<div class="empty-projects"><p>Error: ${error}</p></div>`;
@@ -1000,6 +1016,7 @@ async function showProjectModal() {
     item.innerHTML = `
       <div class="project-icon">🔷</div>
       <div class="project-details">
+        ${mode === 'all-projects' && proj.ownerContact ? `<div class="project-owner-contact">${escapeHtml(proj.ownerContact)}</div>` : ''}
         <div class="project-title">${escapeHtml(proj.name || 'Untitled')} ${badge}</div>
         <div class="project-meta">${proj.nodeCount || 0} nodes · ${formatDate(proj.updatedAt)}</div>
       </div>
@@ -1032,7 +1049,7 @@ async function showProjectModal() {
       if (confirm(`Delete "${proj.name || 'Untitled'}"?`)) {
         await deleteProject(projOwnerId, proj.id);
         showToast('Project deleted', 'info');
-        showProjectModal(); // Refresh list
+        showProjectModal(mode); // Refresh list
       }
     });
     
@@ -1067,6 +1084,7 @@ async function saveCurrentProject() {
   const ownerId = currentProjectOwnerId || currentUser.uid;
   const name = document.getElementById('project-name').value || 'Untitled Project';
   const graphData = canvas.getProjectData();
+  const ownerContact = currentUser.email || currentUser.phoneNumber || 'Unknown';
   
   updateSaveStatus('saving');
   
@@ -1074,6 +1092,7 @@ async function saveCurrentProject() {
     name,
     graphData,
     nodeCount: canvas.graph.getNodeCount(),
+    ownerContact: ownerContact,
     createdAt: new Date()
   });
   

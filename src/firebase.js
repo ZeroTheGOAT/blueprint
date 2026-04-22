@@ -161,7 +161,7 @@ export async function loadProject(userId, projectId) {
   }
 }
 
-export async function listProjects(userId, userEmail) {
+export async function listProjects(userId, userEmail, mode = 'my-projects') {
   try {
     const projects = new Map();
     
@@ -174,7 +174,7 @@ export async function listProjects(userId, userEmail) {
       });
     };
 
-    if (userEmail === 'hariprasadhp637@gmail.com') {
+    if (mode === 'all-projects' && userEmail === 'hariprasadhp637@gmail.com') {
       // Admin: Fetch ALL projects
       const adminQuery = query(collectionGroup(db, 'blueprint'));
       const adminSnapshot = await getDocs(adminQuery);
