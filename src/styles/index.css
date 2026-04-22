@@ -4,13 +4,13 @@
 
 /* CSS Custom Properties */
 :root {
-  /* Colors - Dark Theme */
-  --bg-primary: #0d0d1a;
-  --bg-secondary: #141428;
-  --bg-tertiary: #1a1a2e;
-  --bg-surface: #1e1e36;
-  --bg-elevated: #252545;
-  --bg-hover: #2a2a4a;
+  /* Colors - Minimalist Black Theme */
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-tertiary: #121212;
+  --bg-surface: #171717;
+  --bg-elevated: #1e1e1e;
+  --bg-hover: #262626;
   
   /* Accent Colors */
   --accent-primary: #7c3aed;
@@ -150,11 +150,7 @@ button {
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: 
-    radial-gradient(ellipse at 20% 50%, rgba(124, 58, 237, 0.08) 0%, transparent 60%),
-    radial-gradient(ellipse at 80% 20%, rgba(0, 212, 255, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 50%),
-    var(--bg-primary);
+  background: var(--bg-primary);
 }
 
 .grid-lines {
@@ -170,46 +166,6 @@ button {
 @keyframes gridPan {
   0% { transform: translate(0, 0); }
   100% { transform: translate(40px, 40px); }
-}
-
-.glow-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  animation: orbFloat 20s ease-in-out infinite;
-}
-
-.orb-1 {
-  width: 400px;
-  height: 400px;
-  background: rgba(124, 58, 237, 0.15);
-  top: 10%;
-  left: 15%;
-  animation-delay: 0s;
-}
-
-.orb-2 {
-  width: 300px;
-  height: 300px;
-  background: rgba(0, 212, 255, 0.12);
-  top: 50%;
-  right: 10%;
-  animation-delay: -7s;
-}
-
-.orb-3 {
-  width: 350px;
-  height: 350px;
-  background: rgba(16, 185, 129, 0.1);
-  bottom: 10%;
-  left: 40%;
-  animation-delay: -14s;
-}
-
-@keyframes orbFloat {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -30px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.95); }
 }
 
 .auth-container {

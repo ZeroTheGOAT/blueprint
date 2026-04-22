@@ -104,6 +104,72 @@ export const NODE_TYPES = {
       outputs: [{ name: 'Out', type: 'data' }]
     },
     fields: ['title', 'description', 'tags']
+  },
+  condition: {
+    label: 'Condition',
+    color: '#0ea5e9',
+    icon: '⚖️',
+    category: 'Logic / Flow',
+    defaultPorts: {
+      inputs: [{ name: 'Flow In', type: 'flow' }],
+      outputs: [{ name: 'True', type: 'flow' }, { name: 'False', type: 'flow' }]
+    },
+    fields: ['title', 'condition', 'description', 'tags']
+  },
+  variable: {
+    label: 'Variable',
+    color: '#ec4899',
+    icon: '🔢',
+    category: 'Logic / Flow',
+    defaultPorts: {
+      inputs: [{ name: 'Flow In', type: 'flow' }],
+      outputs: [{ name: 'Next', type: 'flow' }]
+    },
+    fields: ['title', 'variableName', 'operation', 'value', 'description', 'tags']
+  },
+  encounter: {
+    label: 'Encounter',
+    color: '#ef4444',
+    icon: '⚔️',
+    category: 'Game Design',
+    defaultPorts: {
+      inputs: [{ name: 'Flow In', type: 'flow' }],
+      outputs: [{ name: 'Win', type: 'flow' }, { name: 'Lose', type: 'flow' }, { name: 'Loot', type: 'data' }]
+    },
+    fields: ['title', 'enemyType', 'difficulty', 'description', 'tags']
+  },
+  audio: {
+    label: 'Audio',
+    color: '#a855f7',
+    icon: '🎵',
+    category: 'Media',
+    defaultPorts: {
+      inputs: [{ name: 'Flow In', type: 'flow' }],
+      outputs: [{ name: 'Next', type: 'flow' }]
+    },
+    fields: ['title', 'trackName', 'audioType', 'volume', 'description', 'tags']
+  },
+  cutscene: {
+    label: 'Cutscene',
+    color: '#f97316',
+    icon: '🎬',
+    category: 'Narrative',
+    defaultPorts: {
+      inputs: [{ name: 'Flow In', type: 'flow' }],
+      outputs: [{ name: 'On Complete', type: 'flow' }]
+    },
+    fields: ['title', 'duration', 'cameraAngles', 'description', 'tags']
+  },
+  endState: {
+    label: 'End State',
+    color: '#000000',
+    icon: '🏁',
+    category: 'Flow',
+    defaultPorts: {
+      inputs: [{ name: 'Flow In', type: 'flow' }],
+      outputs: []
+    },
+    fields: ['title', 'endType', 'description', 'tags']
   }
 };
 
@@ -131,6 +197,20 @@ export class Node {
     this.traits = options.traits || '';
     this.objectives = options.objectives || '';
     this.speaker = options.speaker || '';
+    
+    // New fields
+    this.condition = options.condition || '';
+    this.variableName = options.variableName || '';
+    this.operation = options.operation || '';
+    this.value = options.value || '';
+    this.enemyType = options.enemyType || '';
+    this.difficulty = options.difficulty || '';
+    this.trackName = options.trackName || '';
+    this.audioType = options.audioType || '';
+    this.volume = options.volume || '';
+    this.duration = options.duration || '';
+    this.cameraAngles = options.cameraAngles || '';
+    this.endType = options.endType || '';
     
     // Ports
     const typeDef = NODE_TYPES[type];
@@ -404,6 +484,18 @@ export class Node {
       traits: this.traits,
       objectives: this.objectives,
       speaker: this.speaker,
+      condition: this.condition,
+      variableName: this.variableName,
+      operation: this.operation,
+      value: this.value,
+      enemyType: this.enemyType,
+      difficulty: this.difficulty,
+      trackName: this.trackName,
+      audioType: this.audioType,
+      volume: this.volume,
+      duration: this.duration,
+      cameraAngles: this.cameraAngles,
+      endType: this.endType,
       inputs: this.inputs.map(p => ({ ...p })),
       outputs: this.outputs.map(p => ({ ...p }))
     };
@@ -420,6 +512,18 @@ export class Node {
       traits: data.traits,
       objectives: data.objectives,
       speaker: data.speaker,
+      condition: data.condition,
+      variableName: data.variableName,
+      operation: data.operation,
+      value: data.value,
+      enemyType: data.enemyType,
+      difficulty: data.difficulty,
+      trackName: data.trackName,
+      audioType: data.audioType,
+      volume: data.volume,
+      duration: data.duration,
+      cameraAngles: data.cameraAngles,
+      endType: data.endType,
       inputs: data.inputs,
       outputs: data.outputs
     });

@@ -541,6 +541,89 @@ function updateProperties(selectedNodes) {
           <input type="text" id="prop-speaker" value="${escapeHtml(node.speaker || '')}" placeholder="Character name" />
         </div>
       ` : ''}
+      
+      ${node.type === 'condition' ? `
+        <div class="prop-field">
+          <label>Condition</label>
+          <input type="text" id="prop-condition" value="${escapeHtml(node.condition || '')}" placeholder="e.g. hasKey == true" />
+        </div>
+      ` : ''}
+      
+      ${node.type === 'variable' ? `
+        <div class="prop-field">
+          <label>Variable Name</label>
+          <input type="text" id="prop-variable-name" value="${escapeHtml(node.variableName || '')}" placeholder="Health" />
+        </div>
+        <div class="prop-field">
+          <label>Operation</label>
+          <select id="prop-operation">
+            <option value="set" ${node.operation === 'set' ? 'selected' : ''}>Set (=)</option>
+            <option value="add" ${node.operation === 'add' ? 'selected' : ''}>Add (+)</option>
+            <option value="sub" ${node.operation === 'sub' ? 'selected' : ''}>Subtract (-)</option>
+          </select>
+        </div>
+        <div class="prop-field">
+          <label>Value</label>
+          <input type="text" id="prop-value" value="${escapeHtml(node.value || '')}" placeholder="10" />
+        </div>
+      ` : ''}
+      
+      ${node.type === 'encounter' ? `
+        <div class="prop-field">
+          <label>Enemy Type</label>
+          <input type="text" id="prop-enemy-type" value="${escapeHtml(node.enemyType || '')}" placeholder="Skeleton Archer" />
+        </div>
+        <div class="prop-field">
+          <label>Difficulty</label>
+          <select id="prop-difficulty">
+            <option value="easy" ${node.difficulty === 'easy' ? 'selected' : ''}>Easy</option>
+            <option value="medium" ${node.difficulty === 'medium' ? 'selected' : ''}>Medium</option>
+            <option value="hard" ${node.difficulty === 'hard' ? 'selected' : ''}>Hard</option>
+            <option value="boss" ${node.difficulty === 'boss' ? 'selected' : ''}>Boss</option>
+          </select>
+        </div>
+      ` : ''}
+      
+      ${node.type === 'audio' ? `
+        <div class="prop-field">
+          <label>Track Name</label>
+          <input type="text" id="prop-track-name" value="${escapeHtml(node.trackName || '')}" placeholder="Forest_Ambience.mp3" />
+        </div>
+        <div class="prop-field">
+          <label>Audio Type</label>
+          <select id="prop-audio-type">
+            <option value="bgm" ${node.audioType === 'bgm' ? 'selected' : ''}>Background Music</option>
+            <option value="sfx" ${node.audioType === 'sfx' ? 'selected' : ''}>Sound Effect</option>
+            <option value="voice" ${node.audioType === 'voice' ? 'selected' : ''}>Voice Over</option>
+          </select>
+        </div>
+        <div class="prop-field">
+          <label>Volume</label>
+          <input type="range" id="prop-volume" min="0" max="100" value="${node.volume || 100}" />
+        </div>
+      ` : ''}
+      
+      ${node.type === 'cutscene' ? `
+        <div class="prop-field">
+          <label>Duration (sec)</label>
+          <input type="number" id="prop-duration" value="${node.duration || 5}" />
+        </div>
+        <div class="prop-field">
+          <label>Camera Angles</label>
+          <textarea id="prop-camera-angles" rows="2" placeholder="Close up on face, panning left...">${escapeHtml(node.cameraAngles || '')}</textarea>
+        </div>
+      ` : ''}
+      
+      ${node.type === 'endState' ? `
+        <div class="prop-field">
+          <label>End Type</label>
+          <select id="prop-end-type">
+            <option value="win" ${node.endType === 'win' ? 'selected' : ''}>Victory / Level Complete</option>
+            <option value="fail" ${node.endType === 'fail' ? 'selected' : ''}>Game Over / Defeat</option>
+            <option value="other" ${node.endType === 'other' ? 'selected' : ''}>Custom Ending</option>
+          </select>
+        </div>
+      ` : ''}
     </div>
     
     <div class="prop-group">
@@ -639,6 +722,78 @@ function updateProperties(selectedNodes) {
     node.speaker = speakerInput.value;
     markDirty();
   }, 300));
+  
+  const conditionInput = document.getElementById('prop-condition');
+  conditionInput?.addEventListener('input', debounce(() => {
+    node.condition = conditionInput.value;
+    markDirty();
+  }, 300));
+
+  const varNameInput = document.getElementById('prop-variable-name');
+  varNameInput?.addEventListener('input', debounce(() => {
+    node.variableName = varNameInput.value;
+    markDirty();
+  }, 300));
+
+  const opSelect = document.getElementById('prop-operation');
+  opSelect?.addEventListener('change', () => {
+    node.operation = opSelect.value;
+    markDirty();
+  });
+
+  const valInput = document.getElementById('prop-value');
+  valInput?.addEventListener('input', debounce(() => {
+    node.value = valInput.value;
+    markDirty();
+  }, 300));
+
+  const enemyInput = document.getElementById('prop-enemy-type');
+  enemyInput?.addEventListener('input', debounce(() => {
+    node.enemyType = enemyInput.value;
+    markDirty();
+  }, 300));
+
+  const diffSelect = document.getElementById('prop-difficulty');
+  diffSelect?.addEventListener('change', () => {
+    node.difficulty = diffSelect.value;
+    markDirty();
+  });
+
+  const trackInput = document.getElementById('prop-track-name');
+  trackInput?.addEventListener('input', debounce(() => {
+    node.trackName = trackInput.value;
+    markDirty();
+  }, 300));
+
+  const audioTypeSelect = document.getElementById('prop-audio-type');
+  audioTypeSelect?.addEventListener('change', () => {
+    node.audioType = audioTypeSelect.value;
+    markDirty();
+  });
+
+  const volInput = document.getElementById('prop-volume');
+  volInput?.addEventListener('input', () => {
+    node.volume = volInput.value;
+    markDirty();
+  });
+
+  const durInput = document.getElementById('prop-duration');
+  durInput?.addEventListener('input', () => {
+    node.duration = durInput.value;
+    markDirty();
+  });
+
+  const camInput = document.getElementById('prop-camera-angles');
+  camInput?.addEventListener('input', debounce(() => {
+    node.cameraAngles = camInput.value;
+    markDirty();
+  }, 300));
+
+  const endTypeSelect = document.getElementById('prop-end-type');
+  endTypeSelect?.addEventListener('change', () => {
+    node.endType = endTypeSelect.value;
+    markDirty();
+  });
   
   // Color swatches
   document.querySelectorAll('.prop-color-swatch').forEach(swatch => {
