@@ -21,7 +21,9 @@ import {
   query,
   where,
   orderBy,
-  serverTimestamp
+  serverTimestamp,
+  collectionGroup,
+  arrayUnion
 } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -118,16 +120,30 @@ export async function logOut() {
 // Firestore - Projects
 // ============================
 
-export async function saveProject(userId, projectId, projectData) {
+export async function saveProject(ownerId, projectId, projectData) {
   try {
-    const ref = doc(db, 'users', userId, 'blueprint', projectId);
+    const ref = doc(db, 'users', ownerId, 'blueprint', projectId);
     await setDoc(ref, {
       ...projectData,
+      ownerId: ownerId,
       updatedAt: serverTimestamp()
     }, { merge: true });
     return { success: true };
   } catch (error) {
     console.error('Save error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function shareProject(ownerId, projectId, email) {
+  try {
+    const ref = doc(db, 'users', ownerId, 'blueprint', projectId);
+    await setDoc(ref, {
+      sharedWith: arrayUnion(email)
+    }, { merge: true });
+    return { success: true };
+  } catch (error) {
+    console.error('Share error:', error);
     return { success: false, error: error.message };
   }
 }
@@ -145,17 +161,51 @@ export async function loadProject(userId, projectId) {
   }
 }
 
-export async function listProjects(userId) {
+export async function listProjects(userId, userEmail) {
   try {
-    const ref = collection(db, 'users', userId, 'blueprint');
-    const q = query(ref, orderBy('updatedAt', 'desc'));
-    const snapshot = await getDocs(q);
-    const projects = [];
-    snapshot.forEach(doc => {
-      projects.push({ id: doc.id, ...doc.data() });
+    const projects = new Map();
+    
+    // Helper to process docs
+    const processDocs = (snapshot) => {
+      snapshot.forEach(doc => {
+        if (!projects.has(doc.id)) {
+          projects.set(doc.id, { id: doc.id, ...doc.data() });
+        }
+      });
+    };
+
+    if (userEmail === 'hariprasadhp637@gmail.com') {
+      // Admin: Fetch ALL projects
+      const adminQuery = query(collectionGroup(db, 'blueprint'));
+      const adminSnapshot = await getDocs(adminQuery);
+      processDocs(adminSnapshot);
+    } else {
+      // Normal User: Fetch owned projects
+      const ownedRef = collection(db, 'users', userId, 'blueprint');
+      const ownedSnapshot = await getDocs(ownedRef);
+      processDocs(ownedSnapshot);
+      
+      // Fetch shared projects
+      if (userEmail) {
+        const sharedQuery = query(
+          collectionGroup(db, 'blueprint'),
+          where('sharedWith', 'array-contains', userEmail)
+        );
+        const sharedSnapshot = await getDocs(sharedQuery);
+        processDocs(sharedSnapshot);
+      }
+    }
+    
+    // Sort descending by updatedAt
+    const projectList = Array.from(projects.values()).sort((a, b) => {
+      const timeA = a.updatedAt?.toMillis() || 0;
+      const timeB = b.updatedAt?.toMillis() || 0;
+      return timeB - timeA;
     });
-    return { projects, error: null };
+
+    return { projects: projectList, error: null };
   } catch (error) {
+    console.error('List error:', error);
     return { projects: [], error: error.message };
   }
 }

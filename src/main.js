@@ -17,7 +17,8 @@ import {
   saveProject,
   loadProject,
   listProjects,
-  deleteProject
+  deleteProject,
+  shareProject
 } from './firebase.js';
 import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJSON } from './utils/helpers.js';
 
@@ -28,6 +29,7 @@ import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJS
 let canvas = null;
 let currentUser = null;
 let currentProjectId = null;
+let currentProjectOwnerId = null;
 let autoSaveTimer = null;
 let isDirty = false;
 
@@ -960,7 +962,7 @@ async function showProjectModal() {
   
   if (!currentUser) return;
   
-  const { projects, error } = await listProjects(currentUser.uid);
+  const { projects, error } = await listProjects(currentUser.uid, currentUser.email);
   
   if (error) {
     list.innerHTML = `<div class="empty-projects"><p>Error: ${error}</p></div>`;
@@ -981,28 +983,54 @@ async function showProjectModal() {
   projects.forEach(proj => {
     const item = document.createElement('div');
     item.className = `project-item ${proj.id === currentProjectId ? 'active' : ''}`;
+    
+    // Determine ownership and badges
+    const projOwnerId = proj.ownerId || currentUser.uid;
+    const isOwner = projOwnerId === currentUser.uid;
+    const isAdmin = currentUser.email === 'hariprasadhp637@gmail.com';
+    let badge = '';
+    if (!isOwner) {
+      if (proj.sharedWith && proj.sharedWith.includes(currentUser.email)) {
+        badge = '<span class="project-badge">Shared</span>';
+      } else if (isAdmin) {
+        badge = '<span class="project-badge admin">Admin View</span>';
+      }
+    }
+
     item.innerHTML = `
       <div class="project-icon">🔷</div>
       <div class="project-details">
-        <div class="project-title">${escapeHtml(proj.name || 'Untitled')}</div>
+        <div class="project-title">${escapeHtml(proj.name || 'Untitled')} ${badge}</div>
         <div class="project-meta">${proj.nodeCount || 0} nodes · ${formatDate(proj.updatedAt)}</div>
       </div>
       <div class="project-actions">
-        <button class="project-action-btn delete" title="Delete" data-delete-id="${proj.id}">🗑️</button>
+        ${isOwner ? `<button class="project-action-btn share" title="Share" data-share-id="${proj.id}">🔗</button>` : ''}
+        ${isOwner || isAdmin ? `<button class="project-action-btn delete" title="Delete" data-delete-id="${proj.id}">🗑️</button>` : ''}
       </div>
     `;
     
     item.addEventListener('click', (e) => {
       if (e.target.closest('.project-action-btn')) return;
-      openProject(proj.id);
+      openProject(proj.id, projOwnerId);
       hideProjectModal();
     });
     
+    const shareBtn = item.querySelector('[data-share-id]');
+    shareBtn?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const email = prompt(`Share "${proj.name || 'Untitled'}" with email:`);
+      if (email && email.trim()) {
+        const res = await shareProject(projOwnerId, proj.id, email.trim());
+        if (res.success) showToast(`Shared with ${email}`, 'success');
+        else showToast(`Failed to share: ${res.error}`, 'error');
+      }
+    });
+
     const deleteBtn = item.querySelector('[data-delete-id]');
     deleteBtn?.addEventListener('click', async (e) => {
       e.stopPropagation();
       if (confirm(`Delete "${proj.name || 'Untitled'}"?`)) {
-        await deleteProject(currentUser.uid, proj.id);
+        await deleteProject(projOwnerId, proj.id);
         showToast('Project deleted', 'info');
         showProjectModal(); // Refresh list
       }
@@ -1022,6 +1050,7 @@ function hideProjectModal() {
 
 function newProject() {
   currentProjectId = generateId();
+  currentProjectOwnerId = currentUser ? currentUser.uid : null;
   document.getElementById('project-name').value = 'Untitled Project';
   canvas.clearAll();
   showToast('New project created', 'success');
@@ -1030,14 +1059,18 @@ function newProject() {
 
 async function saveCurrentProject() {
   if (!currentUser) return;
-  if (!currentProjectId) currentProjectId = generateId();
+  if (!currentProjectId) {
+    currentProjectId = generateId();
+    currentProjectOwnerId = currentUser.uid;
+  }
   
+  const ownerId = currentProjectOwnerId || currentUser.uid;
   const name = document.getElementById('project-name').value || 'Untitled Project';
   const graphData = canvas.getProjectData();
   
   updateSaveStatus('saving');
   
-  const { success, error } = await saveProject(currentUser.uid, currentProjectId, {
+  const { success, error } = await saveProject(ownerId, currentProjectId, {
     name,
     graphData,
     nodeCount: canvas.graph.getNodeCount(),
@@ -1048,6 +1081,7 @@ async function saveCurrentProject() {
     isDirty = false;
     updateSaveStatus('saved');
     localStorage.setItem('blueprint_lastProjectId', currentProjectId);
+    localStorage.setItem('blueprint_lastOwnerId', ownerId);
   } else {
     updateSaveStatus('unsaved');
     showToast('Save failed: ' + error, 'error');
@@ -1059,21 +1093,24 @@ async function saveAsNewProject() {
   if (!name) return;
   
   currentProjectId = generateId();
+  currentProjectOwnerId = currentUser ? currentUser.uid : null;
   document.getElementById('project-name').value = name;
   await saveCurrentProject();
   showToast('Saved as new project', 'success');
 }
 
-async function openProject(projectId) {
+async function openProject(projectId, ownerId) {
   if (!currentUser) return;
   
-  const { data, error } = await loadProject(currentUser.uid, projectId);
+  const targetOwnerId = ownerId || currentUser.uid;
+  const { data, error } = await loadProject(targetOwnerId, projectId);
   if (error) {
     showToast('Failed to load: ' + error, 'error');
     return;
   }
   
   currentProjectId = projectId;
+  currentProjectOwnerId = targetOwnerId;
   document.getElementById('project-name').value = data.name || 'Untitled';
   
   if (data.graphData) {
@@ -1085,15 +1122,19 @@ async function openProject(projectId) {
   isDirty = false;
   updateSaveStatus('saved');
   localStorage.setItem('blueprint_lastProjectId', projectId);
+  localStorage.setItem('blueprint_lastOwnerId', targetOwnerId);
   showToast('Project loaded', 'success');
 }
 
 async function loadLastProject() {
   const lastId = localStorage.getItem('blueprint_lastProjectId');
+  const lastOwner = localStorage.getItem('blueprint_lastOwnerId');
   if (lastId && currentUser) {
-    const { data } = await loadProject(currentUser.uid, lastId);
+    const targetOwnerId = lastOwner || currentUser.uid;
+    const { data } = await loadProject(targetOwnerId, lastId);
     if (data) {
       currentProjectId = lastId;
+      currentProjectOwnerId = targetOwnerId;
       document.getElementById('project-name').value = data.name || 'Untitled';
       if (data.graphData) {
         canvas.loadProjectData(data.graphData);
