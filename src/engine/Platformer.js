@@ -37,10 +37,8 @@ export class PlatformerCanvas {
     this.canvas = canvasElement;
     this.ctx = canvasElement.getContext('2d');
     
-    // Grid settings — large canvas like the 3D story blueprint
+    // Grid settings — Infinite canvas
     this.tileSize = 40;
-    this.gridWidth = 500;
-    this.gridHeight = 500;
     this.tiles = new Map(); // key: "x,y", value: type
     
     // View state
@@ -95,14 +93,9 @@ export class PlatformerCanvas {
 
   centerView() {
     if (!this.canvasWidth || !this.canvasHeight) return;
-    // Show a 30x20 tile area at the center of the grid initially
-    this.zoom = Math.min(this.canvasWidth / (30 * this.tileSize), this.canvasHeight / (20 * this.tileSize));
-    this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, this.zoom));
-    // Pan so the center of the grid is at the center of the screen
-    const gridCenterX = (this.gridWidth * this.tileSize) / 2;
-    const gridCenterY = (this.gridHeight * this.tileSize) / 2;
-    this.panX = this.canvasWidth / 2 - gridCenterX * this.zoom;
-    this.panY = this.canvasHeight / 2 - gridCenterY * this.zoom;
+    this.zoom = 1;
+    this.panX = this.canvasWidth / 2;
+    this.panY = this.canvasHeight / 2;
     this.render();
   }
 
@@ -322,12 +315,10 @@ export class PlatformerCanvas {
 
   paintTile(e) {
     const { gx, gy } = this.getGridCoords(e);
-    if (gx >= 0 && gx < this.gridWidth && gy >= 0 && gy < this.gridHeight) {
-      const key = `${gx},${gy}`;
-      if (this.tiles.get(key) !== this.currentTool) {
-        this.tiles.set(key, this.currentTool);
-        this.render();
-      }
+    const key = `${gx},${gy}`;
+    if (this.tiles.get(key) !== this.currentTool) {
+      this.tiles.set(key, this.currentTool);
+      this.render();
     }
   }
 
@@ -370,8 +361,6 @@ export class PlatformerCanvas {
     }
     return {
       type: 'platformer2d',
-      gridWidth: this.gridWidth,
-      gridHeight: this.gridHeight,
       tiles: tilesObj
     };
   }
@@ -379,8 +368,6 @@ export class PlatformerCanvas {
   loadProjectData(data) {
     this.clear();
     if (data && data.tiles) {
-      this.gridWidth = data.gridWidth || 500;
-      this.gridHeight = data.gridHeight || 500;
       for (const [k, v] of Object.entries(data.tiles)) {
         this.tiles.set(k, v);
       }
@@ -401,25 +388,22 @@ export class PlatformerCanvas {
     ctx.translate(this.panX, this.panY);
     ctx.scale(this.zoom, this.zoom);
     
-    const totalW = this.gridWidth * this.tileSize;
-    const totalH = this.gridHeight * this.tileSize;
-    
     // Only draw what's visible for performance
     const vx0 = -this.panX / this.zoom;
     const vy0 = -this.panY / this.zoom;
     const vx1 = vx0 + this.canvasWidth / this.zoom;
     const vy1 = vy0 + this.canvasHeight / this.zoom;
     
-    const startCol = Math.max(0, Math.floor(vx0 / this.tileSize));
-    const endCol = Math.min(this.gridWidth, Math.ceil(vx1 / this.tileSize));
-    const startRow = Math.max(0, Math.floor(vy0 / this.tileSize));
-    const endRow = Math.min(this.gridHeight, Math.ceil(vy1 / this.tileSize));
+    const startCol = Math.floor(vx0 / this.tileSize);
+    const endCol = Math.ceil(vx1 / this.tileSize);
+    const startRow = Math.floor(vy0 / this.tileSize);
+    const endRow = Math.ceil(vy1 / this.tileSize);
     
-    // Draw Grid area background
+    // Draw Grid area background for the visible area
     ctx.fillStyle = '#111827';
     ctx.fillRect(
-      Math.max(0, startCol * this.tileSize),
-      Math.max(0, startRow * this.tileSize),
+      startCol * this.tileSize,
+      startRow * this.tileSize,
       (endCol - startCol) * this.tileSize,
       (endRow - startRow) * this.tileSize
     );
@@ -437,14 +421,6 @@ export class PlatformerCanvas {
       ctx.lineTo(endCol * this.tileSize, y * this.tileSize);
     }
     ctx.stroke();
-
-    // Draw bounds with glow
-    ctx.shadowColor = 'rgba(124, 58, 237, 0.5)';
-    ctx.shadowBlur = 10;
-    ctx.strokeStyle = 'rgba(124, 58, 237, 0.8)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(0, 0, totalW, totalH);
-    ctx.shadowBlur = 0;
 
     // Draw tiles (only visible ones)
     ctx.font = `${this.tileSize * 0.6}px sans-serif`;
