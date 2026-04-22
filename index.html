@@ -123,6 +123,10 @@
             <line x1="12" y1="20" x2="12" y2="28" stroke="#fff" stroke-width="2" opacity="0.6"/>
           </svg>
         </div>
+        <select id="mode-switcher" class="mode-switcher">
+          <option value="3d-story">3D Story Blueprint</option>
+          <option value="2d-platformer">2D Platformer</option>
+        </select>
         <div class="toolbar-menus">
           <div class="toolbar-menu" data-menu="file">
             <span>File</span>
@@ -220,6 +224,16 @@
         </div>
       </div>
 
+      <!-- Left Sidebar (Platformer Palette) -->
+      <div id="platformer-sidebar" class="sidebar hidden">
+        <div class="sidebar-header">
+          <h3>2D Assets</h3>
+        </div>
+        <div class="sidebar-content" id="platformer-palette">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
       <!-- Canvas Container -->
       <div id="canvas-container">
         <canvas id="blueprint-canvas"></canvas>
@@ -232,6 +246,11 @@
           <span id="node-count">0 nodes</span>
           <span id="connection-count">0 connections</span>
         </div>
+      </div>
+
+      <!-- Platformer Canvas Container -->
+      <div id="platformer-canvas-container" class="hidden">
+        <canvas id="platformer-canvas"></canvas>
       </div>
 
       <!-- Right Sidebar (Properties) -->

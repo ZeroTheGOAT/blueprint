@@ -6,6 +6,7 @@ import './styles/index.css';
 import './styles/mobile.css';
 import { BlueprintCanvas } from './engine/Canvas.js';
 import { NODE_TYPES, PORT_COLORS } from './engine/Node.js';
+import { PlatformerCanvas, TILE_TYPES } from './engine/Platformer.js';
 import {
   onAuthChanged,
   getCurrentUser,
@@ -27,6 +28,8 @@ import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJS
 // ============================
 
 let canvas = null;
+let platformerCanvas = null;
+let currentMode = '3d-story';
 let currentUser = null;
 let currentProjectId = null;
 let currentProjectOwnerId = null;
@@ -179,6 +182,8 @@ function showAuthLoading(show) {
 function initApp() {
   updateUserUI();
   initCanvas();
+  initPlatformerSidebar();
+  initModeSwitcher();
   initToolbar();
   initSidebar();
   initProperties();
@@ -237,6 +242,70 @@ function initCanvas() {
   canvas.onContextMenu = (info) => {
     showContextMenu(info);
   };
+  
+  const platformerCanvasEl = document.getElementById('platformer-canvas');
+  if (platformerCanvasEl) {
+    platformerCanvas = new PlatformerCanvas(platformerCanvasEl);
+  }
+}
+
+function initModeSwitcher() {
+  const switcher = document.getElementById('mode-switcher');
+  if (!switcher) return;
+  
+  switcher.addEventListener('change', (e) => {
+    switchMode(e.target.value);
+  });
+}
+
+function switchMode(mode) {
+  currentMode = mode;
+  const switcher = document.getElementById('mode-switcher');
+  if (switcher) switcher.value = mode;
+  
+  const storySidebar = document.getElementById('sidebar');
+  const platSidebar = document.getElementById('platformer-sidebar');
+  const storyCanvas = document.getElementById('canvas-container');
+  const platCanvas = document.getElementById('platformer-canvas-container');
+  const propsPanel = document.getElementById('properties-panel');
+  
+  if (mode === '2d-platformer') {
+    storySidebar?.classList.add('hidden');
+    storyCanvas?.classList.add('hidden');
+    propsPanel?.classList.add('hidden');
+    platSidebar?.classList.remove('hidden');
+    platCanvas?.classList.remove('hidden');
+    if (platformerCanvas) platformerCanvas.resize();
+  } else {
+    platSidebar?.classList.add('hidden');
+    platCanvas?.classList.add('hidden');
+    storySidebar?.classList.remove('hidden');
+    storyCanvas?.classList.remove('hidden');
+  }
+}
+
+function initPlatformerSidebar() {
+  const palette = document.getElementById('platformer-palette');
+  if (!palette) return;
+  
+  Object.entries(TILE_TYPES).forEach(([key, type]) => {
+    const item = document.createElement('div');
+    item.className = `platformer-palette-item ${key === 'floor' ? 'active' : ''}`;
+    item.innerHTML = `
+      <div class="platformer-tile-icon" style="background-color: ${type.color}33; border-color: ${type.color}">${type.icon}</div>
+      <span>${type.label}</span>
+    `;
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.platformer-palette-item').forEach(el => el.classList.remove('active'));
+      item.classList.add('active');
+      if (platformerCanvas) platformerCanvas.setTool(key);
+    });
+    palette.appendChild(item);
+  });
+  
+  document.getElementById('platformer-canvas')?.addEventListener('pointerup', () => {
+    markDirty();
+  });
 }
 
 // ============================
@@ -1124,7 +1193,13 @@ function initProjectModal() {
     try {
       const data = await readFileAsJSON(file);
       if (data.graphData) {
-        canvas.loadProjectData(data.graphData);
+        if (data.graphData.type === 'platformer2d') {
+          switchMode('2d-platformer');
+          if (platformerCanvas) platformerCanvas.loadProjectData(data.graphData);
+        } else {
+          switchMode('3d-story');
+          canvas.loadProjectData(data.graphData);
+        }
         document.getElementById('project-name').value = data.name || 'Imported Project';
         currentProjectId = generateId();
         showToast('Project imported successfully', 'success');
@@ -1256,6 +1331,7 @@ function newProject() {
   currentProjectOwnerId = currentUser ? currentUser.uid : null;
   document.getElementById('project-name').value = 'Untitled Project';
   canvas.clearAll();
+  if (platformerCanvas) platformerCanvas.clear();
   showToast('New project created', 'success');
   markDirty();
 }
@@ -1269,7 +1345,8 @@ async function saveCurrentProject() {
   
   const ownerId = currentProjectOwnerId || currentUser.uid;
   const name = document.getElementById('project-name').value || 'Untitled Project';
-  const graphData = canvas.getProjectData();
+  const graphData = currentMode === '2d-platformer' ? platformerCanvas.getProjectData() : canvas.getProjectData();
+  const nodeCount = currentMode === '2d-platformer' ? platformerCanvas.tiles.size : canvas.graph.getNodeCount();
   const ownerContact = currentUser.email || currentUser.phoneNumber || 'Unknown';
   
   updateSaveStatus('saving');
@@ -1277,7 +1354,7 @@ async function saveCurrentProject() {
   const { success, error } = await saveProject(ownerId, currentProjectId, {
     name,
     graphData,
-    nodeCount: canvas.graph.getNodeCount(),
+    nodeCount,
     ownerContact: ownerContact,
     createdAt: new Date()
   });
@@ -1319,9 +1396,16 @@ async function openProject(projectId, ownerId) {
   document.getElementById('project-name').value = data.name || 'Untitled';
   
   if (data.graphData) {
-    canvas.loadProjectData(data.graphData);
+    if (data.graphData.type === 'platformer2d') {
+      switchMode('2d-platformer');
+      if (platformerCanvas) platformerCanvas.loadProjectData(data.graphData);
+    } else {
+      switchMode('3d-story');
+      canvas.loadProjectData(data.graphData);
+    }
   } else {
     canvas.clearAll();
+    if (platformerCanvas) platformerCanvas.clear();
   }
   
   isDirty = false;
@@ -1342,7 +1426,13 @@ async function loadLastProject() {
       currentProjectOwnerId = targetOwnerId;
       document.getElementById('project-name').value = data.name || 'Untitled';
       if (data.graphData) {
-        canvas.loadProjectData(data.graphData);
+        if (data.graphData.type === 'platformer2d') {
+          switchMode('2d-platformer');
+          if (platformerCanvas) platformerCanvas.loadProjectData(data.graphData);
+        } else {
+          switchMode('3d-story');
+          canvas.loadProjectData(data.graphData);
+        }
       }
       isDirty = false;
       updateSaveStatus('saved');
@@ -1358,7 +1448,7 @@ function exportJSON() {
   const data = {
     name,
     exportedAt: new Date().toISOString(),
-    graphData: canvas.getProjectData()
+    graphData: currentMode === '2d-platformer' ? platformerCanvas.getProjectData() : canvas.getProjectData()
   };
   downloadJSON(data, `${name.replace(/\s+/g, '_')}.blueprint.json`);
   showToast('Exported as JSON', 'success');
