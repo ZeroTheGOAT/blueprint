@@ -186,6 +186,7 @@ export class BlueprintCanvas {
 
       if (hitNode) {
         this.pointerState.startedOnNode = true;
+        this.pointerState.hasDraggedNode = false;
         
         // Handle collapse arrow
         if (hitNode.hitTestHeader(wx, wy)) {
@@ -292,6 +293,9 @@ export class BlueprintCanvas {
     if (this.isDragging) {
       const dx = wx - this.dragStartX;
       const dy = wy - this.dragStartY;
+      if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+        this.pointerState.hasDraggedNode = true;
+      }
       this.dragNodes.forEach(({ node, startX, startY }) => {
         let nx = startX + dx;
         let ny = startY + dy;
@@ -358,6 +362,11 @@ export class BlueprintCanvas {
       this.pushHistory();
       this.notifySelectionChanged();
       this.render();
+      
+      // Tap logic (for non-drag clicks on node)
+      if (!this.pointerState.hasDraggedNode && this.onNodeTapped) {
+        this.onNodeTapped(this.getSelectedNodes());
+      }
       return;
     }
 
@@ -373,7 +382,7 @@ export class BlueprintCanvas {
       return;
     }
 
-    // Tap logic (for non-drag clicks)
+    // Tap logic (for non-node clicks)
     if (this.pointerState.startedOnNode && !this.isDragging) {
       this.notifySelectionChanged();
       this.render();

@@ -244,6 +244,10 @@ function initCanvas() {
     showContextMenu(info);
   };
   
+  canvas.onNodeTapped = (selectedNodes) => {
+    updateProperties(selectedNodes, true);
+  };
+  
   const platformerCanvasEl = document.getElementById('platformer-canvas');
   if (platformerCanvasEl) {
     platformerCanvas = new PlatformerCanvas(platformerCanvasEl);
@@ -379,6 +383,12 @@ function initToolbar() {
     canvas.showMinimap = !canvas.showMinimap;
     document.getElementById('minimap').style.display = canvas.showMinimap ? 'block' : 'none';
     canvas.render();
+  });
+  
+  // Mobile save button
+  document.getElementById('btn-save-mobile')?.addEventListener('click', () => {
+    saveCurrentProject();
+    showToast('Saving...', 'info', 1000);
   });
 }
 
@@ -604,7 +614,7 @@ function initProperties() {
   });
 }
 
-function updateProperties(selectedNodes) {
+function updateProperties(selectedNodes, forceOpen = false) {
   const panel = document.getElementById('properties-panel');
   const content = document.getElementById('properties-content');
   
@@ -613,7 +623,13 @@ function updateProperties(selectedNodes) {
     return;
   }
   
-  panel.classList.remove('hidden');
+  // On mobile, only open if explicitly requested (e.g. tap)
+  if (window.innerWidth <= 768 && !forceOpen) {
+    // Keep hidden but update content
+  } else {
+    panel.classList.remove('hidden');
+  }
+  
   const node = selectedNodes[0]; // Show first selected node
   
   const typeDef = NODE_TYPES[node.type];
@@ -1575,8 +1591,21 @@ function initMobile() {
   overlay?.addEventListener('click', closeSidebar);
   
   // Make sidebar items tap-to-add on mobile (since drag-and-drop doesn't work well on touch)
-  document.getElementById('node-palette')?.addEventListener('click', (e) => {
+  let paletteScrolled = false;
+  const nodePalette = document.getElementById('node-palette');
+  
+  nodePalette?.addEventListener('touchmove', () => {
+    paletteScrolled = true;
+  }, { passive: true });
+  
+  nodePalette?.addEventListener('touchstart', () => {
+    paletteScrolled = false;
+  }, { passive: true });
+
+  nodePalette?.addEventListener('click', (e) => {
     if (window.innerWidth > 768) return; // Only on mobile
+    if (paletteScrolled) return;
+    
     const item = e.target.closest('.node-palette-item');
     if (item) {
       // Find the node type from the item
