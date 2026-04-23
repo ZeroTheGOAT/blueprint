@@ -276,18 +276,23 @@ function switchMode(mode) {
     propsPanel?.classList.add('hidden');
     platSidebar?.classList.remove('hidden');
     platCanvas?.classList.remove('hidden');
-    // Delay resize so the container has actual dimensions after display change
-    requestAnimationFrame(() => {
-      if (platformerCanvas) {
-        platformerCanvas.resize();
-        platformerCanvas.centerView();
-      }
-    });
+    
+    // Force layout update so the container has actual dimensions
+    if (platCanvas) platCanvas.offsetHeight;
+    if (platformerCanvas) {
+      platformerCanvas.resize();
+    }
   } else {
     platSidebar?.classList.add('hidden');
     platCanvas?.classList.add('hidden');
     storySidebar?.classList.remove('hidden');
     storyCanvas?.classList.remove('hidden');
+    
+    // Force layout update so the container has actual dimensions
+    if (storyCanvas) storyCanvas.offsetHeight;
+    if (canvas) {
+      canvas.resize();
+    }
   }
 }
 
