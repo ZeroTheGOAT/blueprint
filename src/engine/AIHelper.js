@@ -60,11 +60,18 @@ async function callGemini(prompt) {
     throw new Error('Invalid response format from Gemma');
   }
 
-  // Sanitize the response (Gemma sometimes adds markdown code blocks even if told not to)
-  textResponse = textResponse.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+  // Extract the JSON object using regex if Gemma added conversational text
+  let jsonString = textResponse;
+  const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    jsonString = jsonMatch[0];
+  } else {
+    // If no JSON block is found, try to clean it anyway
+    jsonString = textResponse.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+  }
 
   try {
-    return JSON.parse(textResponse);
+    return JSON.parse(jsonString);
   } catch (e) {
     throw new Error('Failed to parse AI JSON response: ' + textResponse);
   }
@@ -115,7 +122,10 @@ export async function generateMagicBranches(graphData, targetNodeId) {
           "description": "Detailed description of what happens or what the character says."
         }
       ]
+      ]
     }
+    
+    RETURN ONLY RAW JSON. DO NOT INCLUDE ANY CONVERSATIONAL TEXT.
   `;
 
   return await callGemini(prompt);
@@ -155,6 +165,8 @@ export async function checkPlotHoles(graphData) {
       ],
       "overallFeedback": "A short summary of the story's current state."
     }
+    
+    RETURN ONLY RAW JSON. DO NOT INCLUDE ANY CONVERSATIONAL TEXT.
   `;
 
   return await callGemini(prompt);
