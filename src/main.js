@@ -22,7 +22,7 @@ import {
   shareProject
 } from './firebase.js';
 import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJSON } from './utils/helpers.js';
-import { generateMagicBranches, checkPlotHoles } from './engine/AIHelper.js';
+import { generateMagicBranches, checkPlotHoles, setApiKey } from './engine/AIHelper.js';
 // ============================
 // App State
 // ============================
@@ -506,7 +506,15 @@ async function handleAiCheck() {
     
     alert("AI Plot Hole Analysis:\n\n" + msg);
   } catch (err) {
-    showToast('AI Error: ' + err.message, 'error');
+    if (err.message.includes('No API key found')) {
+      const key = prompt('Please enter your Gemini API key (it will be saved locally in your browser):');
+      if (key) {
+        setApiKey(key.trim());
+        handleAiCheck(); // retry
+      }
+    } else {
+      showToast('AI Error: ' + err.message, 'error');
+    }
   }
 }
 
@@ -538,7 +546,15 @@ async function handleAiBranch(node) {
     canvas.render();
     showToast(`Created ${branches.length} magic branches!`, 'success');
   } catch (err) {
-    showToast('AI Error: ' + err.message, 'error');
+    if (err.message.includes('No API key found')) {
+      const key = prompt('Please enter your Gemini API key (it will be saved locally in your browser):');
+      if (key) {
+        setApiKey(key.trim());
+        handleAiBranch(node); // retry
+      }
+    } else {
+      showToast('AI Error: ' + err.message, 'error');
+    }
   }
 }
 

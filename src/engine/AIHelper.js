@@ -2,10 +2,12 @@
 // AIHelper.js — Gemini AI Integration
 // ========================================
 
-const DEFAULT_API_KEY = "AIzaSyAbHBWBdUByUc8HanLteucOl-zQiKHnZEo";
-
 function getApiKey() {
-  return localStorage.getItem('gemini_api_key') || DEFAULT_API_KEY;
+  return localStorage.getItem('gemini_api_key');
+}
+
+export function setApiKey(key) {
+  localStorage.setItem('gemini_api_key', key);
 }
 
 /**
