@@ -470,7 +470,10 @@ function handleMenuAction(action) {
       showToast(`Snap to grid: ${canvas.snapToGrid ? 'ON' : 'OFF'}`, 'info');
       break;
     case 'my-projects':
-      showProjectModal();
+      showProjectModal('my-projects');
+      break;
+    case 'shared-projects':
+      showProjectModal('shared-projects');
       break;
     case 'install-app':
       triggerInstall();
@@ -1281,6 +1284,15 @@ async function showProjectModal(mode = 'my-projects') {
   } else {
     allProjectsTab?.classList.add('hidden');
   }
+  
+  // Visually update the active tab
+  document.querySelectorAll('.project-tab').forEach(t => {
+    if (t.dataset.tab === mode) {
+      t.classList.add('active');
+    } else {
+      t.classList.remove('active');
+    }
+  });
   
   list.innerHTML = '<div class="empty-projects"><div class="spinner"></div><p>Loading projects...</p></div>';
   

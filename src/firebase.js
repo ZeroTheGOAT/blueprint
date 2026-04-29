@@ -189,13 +189,8 @@ export async function listProjects(userId, userEmail, mode = 'my-projects') {
       const adminQuery = query(collectionGroup(db, 'blueprint'));
       const adminSnapshot = await getDocs(adminQuery);
       processDocs(adminSnapshot);
-    } else {
-      // Normal User: Fetch owned projects
-      const ownedRef = collection(db, 'users', userId, 'blueprint');
-      const ownedSnapshot = await getDocs(ownedRef);
-      processDocs(ownedSnapshot);
-      
-      // Fetch shared projects
+    } else if (mode === 'shared-projects') {
+      // Fetch ONLY shared projects
       if (userEmail) {
         const sharedQuery = query(
           collectionGroup(db, 'blueprint'),
@@ -204,6 +199,11 @@ export async function listProjects(userId, userEmail, mode = 'my-projects') {
         const sharedSnapshot = await getDocs(sharedQuery);
         processDocs(sharedSnapshot);
       }
+    } else {
+      // Normal User (my-projects): Fetch ONLY owned projects
+      const ownedRef = collection(db, 'users', userId, 'blueprint');
+      const ownedSnapshot = await getDocs(ownedRef);
+      processDocs(ownedSnapshot);
     }
     
     // Sort descending by updatedAt
