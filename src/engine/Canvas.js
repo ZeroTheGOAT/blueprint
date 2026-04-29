@@ -1276,8 +1276,12 @@ export class BlueprintCanvas {
     const majorStartX = this.panX % majorGridSize;
     const majorStartY = this.panY % majorGridSize;
     
+    // Fill background solid
+    ctx.fillStyle = '#222222';
+    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+    
     // Minor grid
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.strokeStyle = '#2a2a2a';
     ctx.lineWidth = 1;
     ctx.beginPath();
     for (let x = startX; x < this.canvasWidth; x += gridSize) {
@@ -1291,8 +1295,8 @@ export class BlueprintCanvas {
     ctx.stroke();
     
     // Major grid
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#1a1a1a';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (let x = majorStartX; x < this.canvasWidth; x += majorGridSize) {
       ctx.moveTo(Math.round(x) + 0.5, 0);

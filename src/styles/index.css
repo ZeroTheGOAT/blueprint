@@ -4,13 +4,13 @@
 
 /* CSS Custom Properties */
 :root {
-  /* Colors - Minimalist Black Theme */
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --bg-tertiary: #121212;
-  --bg-surface: #171717;
-  --bg-elevated: #1e1e1e;
-  --bg-hover: #262626;
+  /* Colors - Unreal Engine 5 Slate Theme */
+  --bg-primary: #1a1a1a;
+  --bg-secondary: #242424;
+  --bg-tertiary: #2a2a2a;
+  --bg-surface: #323232;
+  --bg-elevated: #383838;
+  --bg-hover: #444444;
   
   /* Accent Colors */
   --accent-primary: #7c3aed;
@@ -30,10 +30,10 @@
   --text-muted: #4a4a65;
   
   /* Borders */
-  --border-primary: rgba(255, 255, 255, 0.06);
-  --border-secondary: rgba(255, 255, 255, 0.1);
-  --border-hover: rgba(255, 255, 255, 0.15);
-  --border-active: rgba(124, 58, 237, 0.5);
+  --border-primary: #111111;
+  --border-secondary: #303030;
+  --border-hover: #4d4d4d;
+  --border-active: #ff9800;
   
   /* Node Colors */
   --node-story: #7c3aed;
