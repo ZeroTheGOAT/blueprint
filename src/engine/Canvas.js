@@ -632,6 +632,10 @@ export class BlueprintCanvas {
         case 'F':
           this.fitAll();
           break;
+        case 'c':
+        case 'C':
+          this.groupSelected();
+          break;
       }
     }
   }
@@ -955,6 +959,30 @@ export class BlueprintCanvas {
     this.notifySelectionChanged();
     this.notifyGraphChanged();
     this.render();
+  }
+
+  groupSelected() {
+    const nodes = this.getSelectedNodes().filter(n => n.type !== 'group');
+    if (nodes.length === 0) return;
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+      if (n.x < minX) minX = n.x;
+      if (n.y < minY) minY = n.y;
+      if (n.x + n.width > maxX) maxX = n.x + n.width;
+      if (n.y + n.height > maxY) maxY = n.y + n.height;
+    });
+    
+    const padding = 40;
+    const groupNode = this.addNode('group', minX - padding, minY - padding - 40, {
+      width: (maxX - minX) + padding * 2,
+      height: (maxY - minY) + padding * 2 + 60,
+      title: 'Comment Group'
+    });
+    
+    // Select the new group node
+    this.clearSelection();
+    this.selectNode(groupNode.id);
   }
 
   editNodeTitle(node) {

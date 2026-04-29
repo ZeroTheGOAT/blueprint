@@ -1061,6 +1061,7 @@ function showContextMenu(info) {
         </div>
       </div>
       <div class="menu-divider"></div>
+      ${canvas.selectedNodes.size > 0 ? '<button data-action="group-selected"><span class="menu-icon">📦</span> Group Selected</button>' : ''}
       <button data-action="paste"><span class="menu-icon">📌</span> Paste</button>
       <button data-action="select-all"><span class="menu-icon">⬜</span> Select All</button>
       <button data-action="fit-all"><span class="menu-icon">📐</span> Fit All</button>
@@ -1133,6 +1134,9 @@ function showContextMenu(info) {
         }
         case 'add-node':
           canvas.addNode(btn.dataset.nodeType, info.worldX, info.worldY);
+          break;
+        case 'group-selected':
+          canvas.groupSelected();
           break;
         case 'paste': canvas.paste(); break;
         case 'select-all': canvas.selectAll(); break;
