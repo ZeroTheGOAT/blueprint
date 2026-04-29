@@ -1937,6 +1937,24 @@ button {
   background: rgba(0, 212, 255, 0.05);
 }
 
+.ai-branch-option.selected {
+  border-color: var(--accent-cyan);
+  background: rgba(0, 212, 255, 0.1);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.15);
+}
+
+.ai-branch-radio {
+  color: var(--text-tertiary);
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  line-height: 1;
+}
+
+.ai-branch-option.selected .ai-branch-radio {
+  color: var(--accent-cyan);
+}
+
 .ai-branch-option input[type="checkbox"] {
   margin-top: 3px;
   accent-color: var(--accent-cyan);

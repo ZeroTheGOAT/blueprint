@@ -496,10 +496,13 @@ async function handleAiCheck() {
   showToast('AI is checking for plot holes...', 'info', 5000);
   
   try {
-    const data = { nodes: Array.from(canvas.graph.nodes.values()).map(n => n.serialize()) };
-    const res = await checkPlotHoles(data);
+    // Build simple data objects instead of calling serialize
+    const nodes = [];
+    canvas.graph.nodes.forEach(n => {
+      nodes.push({ id: n.id, type: n.type, title: n.title, description: n.description || '' });
+    });
+    const res = await checkPlotHoles({ nodes });
     
-    // Simplistic rendering for now
     let msg = `Overall: ${res.overallFeedback}\n\n`;
     (res.issues || []).forEach(issue => {
       msg += `[${issue.severity}] ${issue.title}: ${issue.description}\nFix: ${issue.suggestion}\n\n`;
@@ -511,7 +514,7 @@ async function handleAiCheck() {
       const key = prompt('Please enter your Gemini API key (it will be saved locally in your browser):');
       if (key) {
         setApiKey(key.trim());
-        handleAiCheck(); // retry
+        handleAiCheck();
       }
     } else {
       showToast('AI Error: ' + err.message, 'error');
@@ -523,20 +526,39 @@ async function handleAiBranch(node) {
   showToast('AI is generating magic branches...', 'info', 5000);
   
   try {
-    const data = { nodes: Array.from(canvas.graph.nodes.values()).map(n => n.serialize()) };
-    const res = await generateMagicBranches(data, node.id);
+    // Build simple data objects
+    const nodes = [];
+    canvas.graph.nodes.forEach(n => {
+      nodes.push({ id: n.id, type: n.type, title: n.title, description: n.description || '' });
+    });
+    const res = await generateMagicBranches({ nodes }, node.id);
     
     const branches = res.branches || [];
     if (branches.length === 0) throw new Error('No branches generated.');
     
-    // Show selection popup
-    showBranchPicker(branches, node);
+    // Place all 3 branch nodes on the canvas as previews
+    const previewNodes = [];
+    const startX = node.x + node.width + 150;
+    let startY = node.y - ((branches.length - 1) * 100);
+
+    branches.forEach((b) => {
+      const newNode = canvas.addNode('story', startX, startY);
+      newNode.title = b.title;
+      newNode.description = b.description;
+      previewNodes.push(newNode);
+      startY += 200;
+    });
+
+    canvas.render();
+
+    // Show the branch picker overlay
+    showBranchPicker(branches, node, previewNodes);
   } catch (err) {
     if (err.message.includes('No API key found')) {
       const key = prompt('Please enter your Gemini API key (it will be saved locally in your browser):');
       if (key) {
         setApiKey(key.trim());
-        handleAiBranch(node); // retry
+        handleAiBranch(node);
       }
     } else {
       showToast('AI Error: ' + err.message, 'error');
@@ -544,71 +566,95 @@ async function handleAiBranch(node) {
   }
 }
 
-function showBranchPicker(branches, sourceNode) {
-  // Remove any existing picker
+function showBranchPicker(branches, sourceNode, previewNodes) {
   document.getElementById('ai-branch-picker')?.remove();
 
-  const overlay = document.createElement('div');
-  overlay.id = 'ai-branch-picker';
-  overlay.className = 'modal-overlay';
-  overlay.innerHTML = `
-    <div class="modal-card ai-branch-modal">
-      <div class="ai-branch-header">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-        <span>AI Generated Branches</span>
-        <button class="ai-branch-close">✕</button>
-      </div>
-      <p class="ai-branch-subtitle">Branching from: <strong>${escapeHtml(sourceNode.title)}</strong></p>
-      <div class="ai-branch-list">
-        ${branches.map((b, i) => `
-          <label class="ai-branch-option" for="branch-${i}">
-            <input type="checkbox" id="branch-${i}" data-index="${i}" checked />
-            <div class="ai-branch-content">
-              <div class="ai-branch-title">${escapeHtml(b.title)}</div>
-              <div class="ai-branch-desc">${escapeHtml(b.description)}</div>
+  // Auto-select the first one
+  let selectedIndex = 0;
+
+  function renderPicker() {
+    document.getElementById('ai-branch-picker')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'ai-branch-picker';
+    overlay.className = 'modal-overlay';
+    overlay.style.pointerEvents = 'auto';
+    overlay.innerHTML = `
+      <div class="modal-card ai-branch-modal">
+        <div class="ai-branch-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          <span>AI Generated Branches</span>
+          <button class="ai-branch-close">✕</button>
+        </div>
+        <p class="ai-branch-subtitle">Branching from: <strong>${escapeHtml(sourceNode.title)}</strong> — Click a branch to preview it on canvas</p>
+        <div class="ai-branch-list">
+          ${branches.map((b, i) => `
+            <div class="ai-branch-option ${i === selectedIndex ? 'selected' : ''}" data-index="${i}">
+              <div class="ai-branch-radio">${i === selectedIndex ? '◉' : '○'}</div>
+              <div class="ai-branch-content">
+                <div class="ai-branch-title">${escapeHtml(b.title)}</div>
+                <div class="ai-branch-desc">${escapeHtml(b.description)}</div>
+              </div>
             </div>
-          </label>
-        `).join('')}
+          `).join('')}
+        </div>
+        <div class="ai-branch-actions">
+          <button class="ai-branch-cancel">Cancel All</button>
+          <button class="ai-branch-create">✓ Keep Selected</button>
+        </div>
       </div>
-      <div class="ai-branch-actions">
-        <button class="ai-branch-cancel">Cancel</button>
-        <button class="ai-branch-create">Create Selected</button>
-      </div>
-    </div>
-  `;
+    `;
 
-  document.body.appendChild(overlay);
+    document.body.appendChild(overlay);
 
-  // Close handlers
-  overlay.querySelector('.ai-branch-close').addEventListener('click', () => overlay.remove());
-  overlay.querySelector('.ai-branch-cancel').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    // Highlight the selected node on canvas
+    highlightPreviewNode(selectedIndex);
 
-  // Create handler
-  overlay.querySelector('.ai-branch-create').addEventListener('click', () => {
-    const checked = overlay.querySelectorAll('input[type="checkbox"]:checked');
-    if (checked.length === 0) {
-      showToast('Select at least one branch!', 'error');
-      return;
-    }
-
-    const startX = sourceNode.x + sourceNode.width + 120;
-    let startY = sourceNode.y - ((checked.length - 1) * 90);
-
-    checked.forEach((cb) => {
-      const idx = parseInt(cb.dataset.index);
-      const b = branches[idx];
-      const newNode = canvas.graph.addNode('story', startX, startY);
-      newNode.title = b.title;
-      newNode.description = b.description;
-      startY += 180;
+    // Click on a branch card to select it and highlight it on canvas
+    overlay.querySelectorAll('.ai-branch-option').forEach(card => {
+      card.addEventListener('click', () => {
+        selectedIndex = parseInt(card.dataset.index);
+        renderPicker(); // re-render to show selection
+      });
     });
 
-    canvas.pushHistory();
-    canvas.render();
-    showToast(`Created ${checked.length} branch${checked.length > 1 ? 'es' : ''}!`, 'success');
-    overlay.remove();
-  });
+    // Cancel — remove ALL preview nodes
+    const handleCancel = () => {
+      previewNodes.forEach(n => canvas.graph.removeNode(n.id));
+      canvas.pushHistory();
+      canvas.render();
+      overlay.remove();
+      showToast('Cancelled — all preview branches removed.', 'info');
+    };
+
+    overlay.querySelector('.ai-branch-close').addEventListener('click', handleCancel);
+    overlay.querySelector('.ai-branch-cancel').addEventListener('click', handleCancel);
+
+    // Keep Selected — remove the unselected preview nodes, keep the chosen one
+    overlay.querySelector('.ai-branch-create').addEventListener('click', () => {
+      previewNodes.forEach((n, i) => {
+        if (i !== selectedIndex) {
+          canvas.graph.removeNode(n.id);
+        }
+      });
+      canvas.pushHistory();
+      canvas.render();
+      showToast(`Kept branch: "${branches[selectedIndex].title}"`, 'success');
+      overlay.remove();
+    });
+  }
+
+  function highlightPreviewNode(index) {
+    // Clear all selections, then select just the preview node
+    canvas.clearSelection();
+    if (previewNodes[index]) {
+      canvas.selectNode(previewNodes[index].id);
+      // Pan to show the node
+      canvas.render();
+    }
+  }
+
+  renderPicker();
 }
 
 // ============================
@@ -672,8 +718,11 @@ function initAIChat() {
     messages.scrollTop = messages.scrollHeight;
 
     try {
-      const graphData = { nodes: Array.from(canvas.graph.nodes.values()).map(n => n.serialize()) };
-      const response = await chatWithAI(msg, graphData);
+      const nodes = [];
+      canvas.graph.nodes.forEach(n => {
+        nodes.push({ id: n.id, type: n.type, title: n.title, description: n.description || '' });
+      });
+      const response = await chatWithAI(msg, { nodes });
       thinkingBubble.remove();
       addBubble(response, 'ai');
     } catch (err) {
