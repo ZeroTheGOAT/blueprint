@@ -3,11 +3,11 @@
 // ========================================
 
 // Models:
-// - Gemini 2.5 Flash Lite: For structured JSON tasks (branches, plot holes). Supports native JSON mode.
-// - Gemma 3 27B: For free-form chat (conversational, no JSON needed).
+// - Gemini 3.1 Flash Lite: For structured JSON tasks (branches, plot holes). 15 RPM, 250K TPM, 500 RPD. Native JSON mode.
+// - Gemma 3 27B: For free-form chat. 30 RPM, 15K TPM, 14.4K RPD.
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL_JSON = `${API_BASE}/gemini-2.5-flash-lite`;   // Structured output (native JSON)
-const MODEL_CHAT = `${API_BASE}/gemma-3-27b-it`;           // Free-form chat
+const MODEL_JSON = `${API_BASE}/gemini-3.1-flash-lite-preview`;  // Structured output (500 RPD)
+const MODEL_CHAT = `${API_BASE}/gemma-3-27b-it`;                  // Free-form chat (14.4K RPD)
 
 function getApiKey() {
   return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
