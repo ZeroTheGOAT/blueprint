@@ -630,8 +630,8 @@ function updateProperties(selectedNodes, forceOpen = false) {
     return;
   }
   
-  // On mobile, only open if explicitly requested (e.g. tap)
-  if (window.innerWidth <= 768 && !forceOpen) {
+  // Only open if explicitly requested (e.g. tap) or if already open
+  if (!forceOpen && panel.classList.contains('hidden')) {
     // Keep hidden but update content
   } else {
     panel.classList.remove('hidden');

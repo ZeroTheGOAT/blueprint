@@ -252,7 +252,8 @@ export class BlueprintCanvas {
         }
       } else {
         // Empty canvas
-        if (!e.shiftKey) this.clearSelection();
+        // Only clear selection immediately if using a mouse so long-press context menus on mobile keep selection
+        if (!e.shiftKey && e.pointerType === 'mouse') this.clearSelection();
         
         // If left click, start selection rect
         if (e.button === 0) {
@@ -430,7 +431,16 @@ export class BlueprintCanvas {
     }
 
     if (this.isSelecting && this.selectionRect) {
-      this.finishSelection();
+      if (this.selectionRect.w === 0 && this.selectionRect.h === 0) {
+        if (!e.shiftKey && !this.pointerState.longPressTriggered) {
+          this.clearSelection();
+        }
+      } else {
+        this.finishSelection();
+      }
+      this.isSelecting = false;
+      this.selectionRect = null;
+      this.render();
       return;
     }
 
@@ -444,9 +454,12 @@ export class BlueprintCanvas {
 
   startLongPress(clientX, clientY, wx, wy, node) {
     this.cancelLongPress();
+    this.pointerState.longPressTriggered = false;
     this.pointerState.longPressTimer = setTimeout(() => {
       // Vibrate on supported devices
       if (navigator.vibrate) navigator.vibrate(30);
+      
+      this.pointerState.longPressTriggered = true;
       
       if (this.onContextMenu) {
         this.onContextMenu({
