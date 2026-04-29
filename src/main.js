@@ -503,12 +503,8 @@ async function handleAiCheck() {
     });
     const res = await checkPlotHoles({ nodes });
     
-    let msg = `Overall: ${res.overallFeedback}\n\n`;
-    (res.issues || []).forEach(issue => {
-      msg += `[${issue.severity}] ${issue.title}: ${issue.description}\nFix: ${issue.suggestion}\n\n`;
-    });
-    
-    alert("AI Plot Hole Analysis:\n\n" + msg);
+    // Create a simple custom modal or use alert to display the paragraph
+    alert("AI Plot Hole Analysis:\n\n" + res);
   } catch (err) {
     if (err.message.includes('No API key found')) {
       const key = prompt('Please enter your Gemini API key (it will be saved locally in your browser):');

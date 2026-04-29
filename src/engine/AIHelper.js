@@ -56,55 +56,6 @@ async function callModel(prompt, model, maxTokens = null) {
   return text;
 }
 
-/**
- * Extract JSON from Gemma's output.
- * Gemma 4 is a reasoning model — it thinks out loud before answering.
- * This parser handles all of its quirks.
- */
-function extractJSON(rawText) {
-  // Strategy 1: Look for ```json code blocks
-  const codeBlockMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/i);
-  if (codeBlockMatch) {
-    try { return JSON.parse(codeBlockMatch[1].trim()); } catch (e) { /* continue */ }
-  }
-
-  // Strategy 2: Look for <output> XML tags
-  const outputMatch = rawText.match(/<output>([\s\S]*?)<\/output>/i);
-  if (outputMatch) {
-    try { return JSON.parse(outputMatch[1].trim()); } catch (e) { /* continue */ }
-  }
-
-  // Strategy 3: Find ALL balanced JSON objects, test each one
-  const candidates = [];
-  const stack = [];
-  for (let i = 0; i < rawText.length; i++) {
-    if (rawText[i] === '{') {
-      stack.push(i);
-    } else if (rawText[i] === '}' && stack.length > 0) {
-      const start = stack.pop();
-      const candidate = rawText.substring(start, i + 1);
-      if (candidate.includes('"branches"') || candidate.includes('"issues"') || candidate.includes('"title"')) {
-        candidates.push(candidate);
-      }
-    }
-  }
-
-  // Try longest candidates first (most likely to be the complete object)
-  candidates.sort((a, b) => b.length - a.length);
-  for (const candidate of candidates) {
-    try {
-      const parsed = JSON.parse(candidate);
-      // Validate it has the expected structure
-      if (parsed.branches || parsed.issues) return parsed;
-    } catch (e) { /* try next */ }
-  }
-
-  // Strategy 4: Try the raw text directly
-  try { return JSON.parse(rawText.trim()); } catch (e) { /* fail */ }
-
-  throw new Error('Failed to parse AI JSON response: ' + rawText.substring(0, 300));
-}
-
 
 
 /**
@@ -119,11 +70,9 @@ export async function checkPlotHoles(graphData) {
   const prompt = `Story graph:
 ${graph}
 
-Find plot holes. Reply with ONLY a JSON object. No explanation. No thinking. Just JSON:
-{"issues":[{"severity":"High","title":"...","description":"...","suggestion":"..."}],"overallFeedback":"..."}`;
+Analyze the story graph and write a detailed paragraph or two identifying any plot holes, inconsistencies, or narrative dead ends. Provide suggestions on how to fix them. Do NOT use JSON. Write it as a natural, readable response.`;
 
-  const rawText = await callModel(prompt, MODEL_STRUCTURED, null);
-  return extractJSON(rawText);
+  return await callModel(prompt, MODEL_STRUCTURED, null);
 }
 
 /**
