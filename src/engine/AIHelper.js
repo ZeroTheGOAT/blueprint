@@ -105,28 +105,7 @@ function extractJSON(rawText) {
   throw new Error('Failed to parse AI JSON response: ' + rawText.substring(0, 300));
 }
 
-/**
- * Generates 3 magic branching options from a target node.
- */
-export async function generateMagicBranches(graphData, targetNodeId) {
-  const nodes = graphData.nodes || [];
-  const targetNode = nodes.find(n => n.id === targetNodeId);
-  if (!targetNode) throw new Error('Target node not found.');
 
-  const context = nodes.map(n => `- ${n.title}: ${n.description || ''}`).join('\n');
-
-  // Ultra-minimal prompt to reduce reasoning overhead
-  const prompt = `Story nodes:
-${context}
-
-Branch from: "${targetNode.title}" (${targetNode.description || ''})
-
-Reply with ONLY a JSON object. No explanation. No thinking. Just JSON:
-{"branches":[{"title":"...","description":"..."},{"title":"...","description":"..."},{"title":"...","description":"..."}]}`;
-
-  const rawText = await callModel(prompt, MODEL_STRUCTURED, null);
-  return extractJSON(rawText);
-}
 
 /**
  * Analyzes the graph for plot holes.
