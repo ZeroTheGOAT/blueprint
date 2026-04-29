@@ -176,12 +176,12 @@ export class BlueprintCanvas {
       }
 
       // Check node hit
-      const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
+      const sortedNodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
       let hitNode = null;
       let isResizeHandle = false;
       
-      for (let i = nodes.length - 1; i >= 0; i--) {
-        const n = nodes[i];
+      for (let i = sortedNodes.length - 1; i >= 0; i--) {
+        const n = sortedNodes[i];
         if (n.type === 'group' && wx >= n.x + n.width - 15 && wx <= n.x + n.width && wy >= n.y + n.height - 15 && wy <= n.y + n.height) {
           hitNode = n;
           isResizeHandle = true;
@@ -225,7 +225,7 @@ export class BlueprintCanvas {
         
         if (hitNode.type === 'group') {
           // Select all nodes inside the group
-          nodes.forEach(n => {
+          sortedNodes.forEach(n => {
             if (n.type !== 'group' && n.x >= hitNode.x && n.x + n.width <= hitNode.x + hitNode.width &&
                 n.y >= hitNode.y && n.y + n.height <= hitNode.y + hitNode.height) {
               this.selectNode(n.id);
