@@ -17,11 +17,10 @@ async function callGemini(prompt) {
     throw new Error('No API key found. Please configure your Gemini API Key.');
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b:generateContent?key=${apiKey}`;
 
-  // Note: we are using gemini-2.5-flash as the fallback here if 3.1 isn't fully propagated in standard REST, 
-  // but let's strictly use gemini-2.5-flash as it is the current universally available fast endpoint for browser REST calls.
-  // Actually, let's use the standard flash model.
+  // Removed responseMimeType because Gemma 4 doesn't support the JSON schema flag directly over the REST API in all configurations,
+  // but it will still output JSON based on our strict prompt.
 
   const requestBody = {
     contents: [
@@ -35,8 +34,7 @@ async function callGemini(prompt) {
       temperature: 0.7,
       topK: 40,
       topP: 0.95,
-      maxOutputTokens: 2048,
-      responseMimeType: "application/json"
+      maxOutputTokens: 2048
     }
   };
 
@@ -54,11 +52,14 @@ async function callGemini(prompt) {
   }
 
   const data = await response.json();
-  const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  let textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
   
   if (!textResponse) {
-    throw new Error('Invalid response format from Gemini');
+    throw new Error('Invalid response format from Gemma');
   }
+
+  // Sanitize the response (Gemma sometimes adds markdown code blocks even if told not to)
+  textResponse = textResponse.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
 
   try {
     return JSON.parse(textResponse);
