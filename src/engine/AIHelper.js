@@ -20,23 +20,27 @@ export function setApiKey(key) {
 /**
  * Core API call — returns raw text.
  */
-async function callModel(prompt, model, maxTokens = 4096) {
+async function callModel(prompt, model, maxTokens = null) {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error('No API key found. Please configure your Gemini API Key.');
 
   const url = `${model}:generateContent?key=${apiKey}`;
+
+  const config = {
+    temperature: 0.7,
+    topK: 40,
+    topP: 0.95
+  };
+  if (maxTokens) {
+    config.maxOutputTokens = maxTokens;
+  }
 
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        topK: 40,
-        topP: 0.95,
-        maxOutputTokens: maxTokens
-      }
+      generationConfig: config
     })
   });
 
@@ -120,7 +124,7 @@ Branch from: "${targetNode.title}" (${targetNode.description || ''})
 Reply with ONLY a JSON object. No explanation. No thinking. Just JSON:
 {"branches":[{"title":"...","description":"..."},{"title":"...","description":"..."},{"title":"...","description":"..."}]}`;
 
-  const rawText = await callModel(prompt, MODEL_STRUCTURED, 8192);
+  const rawText = await callModel(prompt, MODEL_STRUCTURED, null);
   return extractJSON(rawText);
 }
 
@@ -139,7 +143,7 @@ ${graph}
 Find plot holes. Reply with ONLY a JSON object. No explanation. No thinking. Just JSON:
 {"issues":[{"severity":"High","title":"...","description":"...","suggestion":"..."}],"overallFeedback":"..."}`;
 
-  const rawText = await callModel(prompt, MODEL_STRUCTURED, 8192);
+  const rawText = await callModel(prompt, MODEL_STRUCTURED, null);
   return extractJSON(rawText);
 }
 
