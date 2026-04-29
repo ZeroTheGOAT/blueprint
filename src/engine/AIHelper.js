@@ -2,7 +2,9 @@
 // AIHelper.js — Gemma 4 31B Integration
 // ========================================
 
-const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it';
+// Models
+const MODEL_GEMMA4 = 'https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it';
+const MODEL_GEMMA3 = 'https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it';
 
 function getApiKey() {
   return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
@@ -15,13 +17,13 @@ export function setApiKey(key) {
 /**
  * Low-level API call — returns raw text from Gemma
  */
-async function callGemmaRaw(prompt, maxTokens = 2048) {
+async function callGemmaRaw(prompt, maxTokens = 2048, model = MODEL_GEMMA4) {
   const apiKey = getApiKey();
   if (!apiKey) {
     throw new Error('No API key found. Please configure your Gemini API Key.');
   }
 
-  const url = `${API_BASE}:generateContent?key=${apiKey}`;
+  const url = `${model}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -181,5 +183,5 @@ Be concise, creative, and helpful. Use bullet points when listing ideas. Do NOT 
 
 User's question: ${userMessage}`;
 
-  return await callGemmaRaw(prompt, 1024);
+  return await callGemmaRaw(prompt, 1024, MODEL_GEMMA3);
 }
