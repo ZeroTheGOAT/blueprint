@@ -1416,6 +1416,7 @@ async function saveCurrentProject() {
     updateSaveStatus('saved');
     localStorage.setItem('blueprint_lastProjectId', currentProjectId);
     localStorage.setItem('blueprint_lastOwnerId', ownerId);
+    localStorage.removeItem(`blueprint_cache_${currentProjectId}`);
   } else {
     updateSaveStatus('unsaved');
     showToast('Save failed: ' + error, 'error');
@@ -1447,21 +1448,39 @@ async function openProject(projectId, ownerId) {
   currentProjectOwnerId = targetOwnerId;
   document.getElementById('project-name').value = data.name || 'Untitled';
   
-  if (data.graphData) {
-    if (data.graphData.type === 'platformer2d') {
+  let finalGraphData = data.graphData;
+  const cachedStr = localStorage.getItem(`blueprint_cache_${projectId}`);
+  let restoredFromCache = false;
+  if (cachedStr) {
+    try {
+      const cache = JSON.parse(cachedStr);
+      if (cache && cache.data) {
+        finalGraphData = cache.data;
+        restoredFromCache = true;
+      }
+    } catch(e) {}
+  }
+  
+  if (finalGraphData) {
+    if (finalGraphData.type === 'platformer2d') {
       switchMode('2d-platformer');
-      if (platformerCanvas) platformerCanvas.loadProjectData(data.graphData);
+      if (platformerCanvas) platformerCanvas.loadProjectData(finalGraphData);
     } else {
       switchMode('3d-story');
-      canvas.loadProjectData(data.graphData);
+      canvas.loadProjectData(finalGraphData);
     }
   } else {
     canvas.clearAll();
     if (platformerCanvas) platformerCanvas.clear();
   }
   
-  isDirty = false;
-  updateSaveStatus('saved');
+  if (restoredFromCache) {
+    showToast('Restored unsaved changes from local cache', 'info');
+    markDirty();
+  } else {
+    isDirty = false;
+    updateSaveStatus('saved');
+  }
   localStorage.setItem('blueprint_lastProjectId', projectId);
   localStorage.setItem('blueprint_lastOwnerId', targetOwnerId);
   showToast('Project loaded', 'success');
@@ -1513,6 +1532,18 @@ function exportJSON() {
 function markDirty() {
   isDirty = true;
   updateSaveStatus('unsaved');
+  
+  // Cache to localStorage instantly so nothing is lost if internet cuts off
+  if (currentProjectId) {
+    const graphData = currentMode === '2d-platformer' ? (platformerCanvas ? platformerCanvas.getProjectData() : null) : canvas.getProjectData();
+    if (graphData) {
+      localStorage.setItem(`blueprint_cache_${currentProjectId}`, JSON.stringify({
+        mode: currentMode,
+        data: graphData,
+        timestamp: Date.now()
+      }));
+    }
+  }
 }
 
 function updateSaveStatus(status) {
