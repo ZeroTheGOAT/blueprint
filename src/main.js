@@ -1572,7 +1572,7 @@ function startAutoSave() {
     if (isDirty && currentUser) {
       saveCurrentProject();
     }
-  }, 120000); // Every 2 minutes (relies on local cache for instant safety)
+  }, 30000); // Every 30 seconds
 }
 
 // ============================
