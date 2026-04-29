@@ -1,9 +1,9 @@
 // ========================================
-// AIHelper.js — Gemini AI Integration
+// AIHelper.js — Gemma 4 31B Integration
 // ========================================
 
 function getApiKey() {
-  return localStorage.getItem('gemini_api_key');
+  return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
 }
 
 export function setApiKey(key) {
@@ -19,7 +19,7 @@ async function callGemini(prompt) {
     throw new Error('No API key found. Please configure your Gemini API Key.');
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemma-4-31b-it:generateContent?key=${apiKey}`;
 
   // Removed responseMimeType because Gemma 4 doesn't support the JSON schema flag directly over the REST API in all configurations,
   // but it will still output JSON based on our strict prompt.
