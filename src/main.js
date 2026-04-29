@@ -22,7 +22,7 @@ import {
   shareProject
 } from './firebase.js';
 import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJSON } from './utils/helpers.js';
-import { generateMagicBranches, checkPlotHoles, setApiKey } from './engine/AIHelper.js';
+import { generateMagicBranches, checkPlotHoles, chatWithAI, setApiKey } from './engine/AIHelper.js';
 // ============================
 // App State
 // ============================
@@ -193,6 +193,7 @@ function initApp() {
   initProjectModal();
   initKeyboardShortcuts();
   initMobile();
+  initAIChat();
   startAutoSave();
   
   // Load last project or create new
@@ -556,6 +557,97 @@ async function handleAiBranch(node) {
       showToast('AI Error: ' + err.message, 'error');
     }
   }
+}
+
+// ============================
+// AI Chat Panel
+// ============================
+
+function initAIChat() {
+  const panel = document.getElementById('ai-chat-panel');
+  const toggleBtn = document.getElementById('ai-chat-btn');
+  const closeBtn = document.getElementById('ai-chat-close');
+  const input = document.getElementById('ai-chat-input');
+  const sendBtn = document.getElementById('ai-chat-send');
+  const messages = document.getElementById('ai-chat-messages');
+  
+  if (!panel || !toggleBtn) return;
+
+  toggleBtn.addEventListener('click', () => {
+    panel.classList.toggle('hidden');
+    toggleBtn.classList.toggle('active');
+    if (!panel.classList.contains('hidden')) {
+      input.focus();
+    }
+  });
+
+  closeBtn.addEventListener('click', () => {
+    panel.classList.add('hidden');
+    toggleBtn.classList.remove('active');
+  });
+
+  function addBubble(text, type) {
+    const bubble = document.createElement('div');
+    bubble.className = `ai-chat-bubble ${type}`;
+    if (type === 'ai') {
+      // Convert newlines, bullet points, and basic markdown
+      const formatted = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        .replace(/\n/g, '<br>');
+      bubble.innerHTML = `<strong>AI Assistant</strong><p>${formatted}</p>`;
+    } else {
+      bubble.textContent = text;
+    }
+    messages.appendChild(bubble);
+    messages.scrollTop = messages.scrollHeight;
+    return bubble;
+  }
+
+  async function sendMessage() {
+    const msg = input.value.trim();
+    if (!msg) return;
+
+    input.value = '';
+    sendBtn.disabled = true;
+    addBubble(msg, 'user');
+
+    // Show thinking indicator
+    const thinkingBubble = document.createElement('div');
+    thinkingBubble.className = 'ai-chat-bubble ai thinking';
+    thinkingBubble.innerHTML = '<strong>AI Assistant</strong><p>Thinking...</p>';
+    messages.appendChild(thinkingBubble);
+    messages.scrollTop = messages.scrollHeight;
+
+    try {
+      const graphData = { nodes: Array.from(canvas.graph.nodes.values()).map(n => n.serialize()) };
+      const response = await chatWithAI(msg, graphData);
+      thinkingBubble.remove();
+      addBubble(response, 'ai');
+    } catch (err) {
+      thinkingBubble.remove();
+      if (err.message.includes('No API key found')) {
+        const key = prompt('Enter your Gemini API key:');
+        if (key) {
+          setApiKey(key.trim());
+          addBubble('API key saved! Please try again.', 'ai');
+        }
+      } else {
+        addBubble('Sorry, I encountered an error: ' + err.message, 'ai');
+      }
+    } finally {
+      sendBtn.disabled = false;
+      input.focus();
+    }
+  }
+
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
 }
 
 // ============================
