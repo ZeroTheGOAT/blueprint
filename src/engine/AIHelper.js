@@ -2,12 +2,12 @@
 // AIHelper.js — Multi-Model AI Integration
 // ========================================
 
-// Models:
-// - Gemini 3.1 Flash Lite: For structured JSON tasks (branches, plot holes). 15 RPM, 250K TPM, 500 RPD. Native JSON mode.
+// Models (Gemma only — Gemini models are overloaded on free tier):
+// - Gemma 4 31B: For structured tasks (branches, plot holes). 15 RPM, Unlimited TPM, 1.5K RPD.
 // - Gemma 3 27B: For free-form chat. 30 RPM, 15K TPM, 14.4K RPD.
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL_JSON = `${API_BASE}/gemini-3.1-flash-lite-preview`;  // Structured output (500 RPD)
-const MODEL_CHAT = `${API_BASE}/gemma-3-27b-it`;                  // Free-form chat (14.4K RPD)
+const MODEL_STRUCTURED = `${API_BASE}/gemma-4-31b-it`;  // JSON tasks (1.5K RPD, unlimited TPM)
+const MODEL_CHAT = `${API_BASE}/gemma-3-27b-it`;         // Chat (14.4K RPD)
 
 function getApiKey() {
   return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
@@ -18,49 +18,13 @@ export function setApiKey(key) {
 }
 
 /**
- * Call a model that supports native JSON output mode.
- * Returns a parsed JSON object directly.
+ * Core API call — returns raw text.
  */
-async function callJSON(prompt, maxTokens = 2048) {
+async function callModel(prompt, model, maxTokens = 4096) {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error('No API key found. Please configure your Gemini API Key.');
 
-  const url = `${MODEL_JSON}:generateContent?key=${apiKey}`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: maxTokens,
-        responseMimeType: 'application/json'
-      }
-    })
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`AI API Error (${response.status}): ${errText}`);
-  }
-
-  const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Empty response from AI model.');
-
-  return JSON.parse(text);
-}
-
-/**
- * Call a model for free-form text output.
- * Returns raw text string.
- */
-async function callText(prompt, maxTokens = 1024) {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error('No API key found. Please configure your Gemini API Key.');
-
-  const url = `${MODEL_CHAT}:generateContent?key=${apiKey}`;
+  const url = `${model}:generateContent?key=${apiKey}`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -89,70 +53,111 @@ async function callText(prompt, maxTokens = 1024) {
 }
 
 /**
+ * Extract JSON from Gemma's output.
+ * Gemma 4 is a reasoning model — it thinks out loud before answering.
+ * This parser handles all of its quirks.
+ */
+function extractJSON(rawText) {
+  // Strategy 1: Look for ```json code blocks
+  const codeBlockMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/i);
+  if (codeBlockMatch) {
+    try { return JSON.parse(codeBlockMatch[1].trim()); } catch (e) { /* continue */ }
+  }
+
+  // Strategy 2: Look for <output> XML tags
+  const outputMatch = rawText.match(/<output>([\s\S]*?)<\/output>/i);
+  if (outputMatch) {
+    try { return JSON.parse(outputMatch[1].trim()); } catch (e) { /* continue */ }
+  }
+
+  // Strategy 3: Find ALL balanced JSON objects, test each one
+  const candidates = [];
+  const stack = [];
+  for (let i = 0; i < rawText.length; i++) {
+    if (rawText[i] === '{') {
+      stack.push(i);
+    } else if (rawText[i] === '}' && stack.length > 0) {
+      const start = stack.pop();
+      const candidate = rawText.substring(start, i + 1);
+      if (candidate.includes('"branches"') || candidate.includes('"issues"') || candidate.includes('"title"')) {
+        candidates.push(candidate);
+      }
+    }
+  }
+
+  // Try longest candidates first (most likely to be the complete object)
+  candidates.sort((a, b) => b.length - a.length);
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate);
+      // Validate it has the expected structure
+      if (parsed.branches || parsed.issues) return parsed;
+    } catch (e) { /* try next */ }
+  }
+
+  // Strategy 4: Try the raw text directly
+  try { return JSON.parse(rawText.trim()); } catch (e) { /* fail */ }
+
+  throw new Error('Failed to parse AI JSON response: ' + rawText.substring(0, 300));
+}
+
+/**
  * Generates 3 magic branching options from a target node.
- * Uses Gemini Flash Lite with native JSON mode — guaranteed valid JSON.
  */
 export async function generateMagicBranches(graphData, targetNodeId) {
   const nodes = graphData.nodes || [];
   const targetNode = nodes.find(n => n.id === targetNodeId);
   if (!targetNode) throw new Error('Target node not found.');
 
-  const context = nodes.map(n => `- ${n.title}: ${n.description || 'No description'}`).join('\n');
+  const context = nodes.map(n => `- ${n.title}: ${n.description || ''}`).join('\n');
 
-  const prompt = `You are an expert game narrative designer.
-
-Story context:
+  // Ultra-minimal prompt to reduce reasoning overhead
+  const prompt = `Story nodes:
 ${context}
 
-Current node: "${targetNode.title}" — ${targetNode.description || 'no description'}
+Branch from: "${targetNode.title}" (${targetNode.description || ''})
 
-Generate exactly 3 creative, narratively diverse story branches that could follow from this node.
+Reply with ONLY a JSON object. No explanation. No thinking. Just JSON:
+{"branches":[{"title":"...","description":"..."},{"title":"...","description":"..."},{"title":"...","description":"..."}]}`;
 
-Return a JSON object with this structure:
-{"branches": [{"title": "Short branch title", "description": "Detailed description of what happens in this branch"}]}`;
-
-  return await callJSON(prompt);
+  const rawText = await callModel(prompt, MODEL_STRUCTURED, 8192);
+  return extractJSON(rawText);
 }
 
 /**
- * Analyzes the entire graph for plot holes and narrative inconsistencies.
- * Uses Gemini Flash Lite with native JSON mode.
+ * Analyzes the graph for plot holes.
  */
 export async function checkPlotHoles(graphData) {
   const nodes = graphData.nodes || [];
   if (nodes.length < 3) throw new Error('Add at least 3 nodes to analyze plot holes.');
 
-  const simplifiedGraph = nodes.map(n => `[${n.type}] ${n.title}: ${n.description || ''}`).join('\n');
+  const graph = nodes.map(n => `- [${n.type}] ${n.title}: ${n.description || ''}`).join('\n');
 
-  const prompt = `You are an expert narrative editor. Analyze this game story graph for plot holes, dead ends, or narrative inconsistencies.
+  const prompt = `Story graph:
+${graph}
 
-STORY GRAPH:
-${simplifiedGraph}
+Find plot holes. Reply with ONLY a JSON object. No explanation. No thinking. Just JSON:
+{"issues":[{"severity":"High","title":"...","description":"...","suggestion":"..."}],"overallFeedback":"..."}`;
 
-Return a JSON object with this structure:
-{"issues": [{"severity": "High or Medium or Low", "title": "Issue title", "description": "Explanation of the issue", "suggestion": "How to fix it"}], "overallFeedback": "A short summary of the story's current state"}`;
-
-  return await callJSON(prompt);
+  const rawText = await callModel(prompt, MODEL_STRUCTURED, 8192);
+  return extractJSON(rawText);
 }
 
 /**
- * AI Chat — free-form conversation about the project.
- * Uses Gemma 3 27B for natural conversational output.
+ * AI Chat — free-form conversation.
  */
 export async function chatWithAI(userMessage, graphData) {
   const nodes = graphData.nodes || [];
-  const simplifiedGraph = nodes.length > 0
-    ? nodes.map(n => `[${n.type}] ${n.title}: ${n.description || 'No description'}`).join('\n')
-    : '(No nodes created yet)';
+  const graph = nodes.length > 0
+    ? nodes.map(n => `[${n.type}] ${n.title}: ${n.description || ''}`).join('\n')
+    : '(No nodes yet)';
 
-  const prompt = `You are a creative game narrative assistant inside "Blueprint Studio", a visual story planning tool. The user is designing a game story using nodes.
+  const prompt = `You are a game narrative assistant. The user is designing a story with these nodes:
+${graph}
 
-Current story graph:
-${simplifiedGraph}
+Be concise and creative. Help with story ideas, characters, world-building, dialogue.
 
-Help with story ideas, character development, world-building, plot suggestions, or dialogue writing. Be concise and creative. Use bullet points when listing ideas.
+User: ${userMessage}`;
 
-User's question: ${userMessage}`;
-
-  return await callText(prompt);
+  return await callModel(prompt, MODEL_CHAT, 1024);
 }
