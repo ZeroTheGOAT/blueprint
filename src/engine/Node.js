@@ -269,13 +269,13 @@ export class Node {
   getInputPortPosition(index) {
     const descOffset = this.getDescOffset();
     const y = this.y + this.headerHeight + this.bodyPadding + descOffset + index * this.portSpacing + this.portSpacing / 2;
-    return { x: this.x, y };
+    return { x: this.x + 14, y };
   }
 
   getOutputPortPosition(index) {
     const descOffset = this.getDescOffset();
     const y = this.y + this.headerHeight + this.bodyPadding + descOffset + index * this.portSpacing + this.portSpacing / 2;
-    return { x: this.x + this.width, y };
+    return { x: this.x + this.width - 14, y };
   }
 
   hitTest(mx, my) {
@@ -392,10 +392,26 @@ export class Node {
     // Header text
     const typeDef = NODE_TYPES[this.type];
     const icon = typeDef?.icon || '🔲';
-    ctx.font = '13px Inter, sans-serif';
+    ctx.font = 'bold 13px Inter, sans-serif'; // Bold for UE5
+    
+    // Header text drop shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.8)';
+    ctx.shadowBlur = 2;
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
     ctx.fillStyle = '#ffffff';
     ctx.textBaseline = 'middle';
     ctx.fillText(`${icon} ${title}`, x + 12, y + headerHeight / 2);
+    
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+    
+    // Header divider line
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(x, y + headerHeight, width, 2);
     
     // Collapse indicator
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
@@ -426,33 +442,33 @@ export class Node {
     // Input ports
     this.inputs.forEach((port, i) => {
       const py = y + headerHeight + bodyPadding + descOffset + i * portSpacing + portSpacing / 2;
-      const px = x;
+      const px = x + 14;
       const portColor = PORT_COLORS[port.type] || PORT_COLORS.data;
       
       this.drawPin(ctx, px, py, port.type, portColor, false);
       
       // Port label
-      ctx.font = '11px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = '12px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(port.name, px + 12, py);
+      ctx.fillText(port.name, px + 14, py);
     });
     
     // Output ports
     this.outputs.forEach((port, i) => {
       const py = y + headerHeight + bodyPadding + descOffset + i * portSpacing + portSpacing / 2;
-      const px = x + width;
+      const px = x + width - 14;
       const portColor = PORT_COLORS[port.type] || PORT_COLORS.data;
       
       this.drawPin(ctx, px, py, port.type, portColor, true);
       
       // Port label
-      ctx.font = '11px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = '12px Inter, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText(port.name, px - 12, py);
+      ctx.fillText(port.name, px - 14, py);
     });
     
     // Reset text align
@@ -462,14 +478,12 @@ export class Node {
   drawPin(ctx, px, py, type, color, isOutput) {
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
-    ctx.fillStyle = color; // For connected state, assuming connected for now. A true implementation would check connection status.
     
     if (type === 'flow') {
       // UE5 Execution Pin (Pentagon Arrow)
-      const w = 10;
-      const h = 12;
-      const offset = isOutput ? 2 : -2; // Slightly jut out
-      const startX = px - w/2 + offset;
+      const w = 12;
+      const h = 14;
+      const startX = px - w/2;
       const startY = py - h/2;
       
       ctx.beginPath();
@@ -480,15 +494,15 @@ export class Node {
       ctx.lineTo(startX, startY + h);
       ctx.closePath();
       
-      // Draw hollow with a slight fill
-      ctx.fillStyle = 'rgba(255,255,255,0.2)'; // Hollow look for flow
+      // Usually solid if connected, but we'll draw solid white for flow
+      ctx.fillStyle = 'rgba(255,255,255,0.8)'; 
       ctx.fill();
       ctx.stroke();
     } else {
       // Data Pin (Circle)
       ctx.beginPath();
-      ctx.arc(px + (isOutput ? 2 : -2), py, 5, 0, Math.PI * 2);
-      ctx.fillStyle = color; // Solid for data
+      ctx.arc(px, py, 6, 0, Math.PI * 2);
+      ctx.fillStyle = color;
       ctx.fill();
       ctx.stroke();
     }
