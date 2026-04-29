@@ -500,7 +500,13 @@ function handleMenuAction(action) {
       handleAiCheck();
       break;
     case 'trigger-ai-chat':
-      document.getElementById('ai-chat-panel')?.classList.toggle('open');
+      const chatPanel = document.getElementById('ai-chat-panel');
+      if (chatPanel) {
+        chatPanel.classList.toggle('hidden');
+        if (!chatPanel.classList.contains('hidden')) {
+          document.getElementById('ai-chat-input')?.focus();
+        }
+      }
       break;
   }
 }

@@ -1866,5 +1866,9 @@ button {
 @media (max-width: 768px) {
   .ai-chat-panel {
     width: 100%;
+    top: 0;
+    z-index: 2000;
+    height: 100vh;
+    height: 100dvh;
   }
 }
