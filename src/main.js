@@ -22,7 +22,7 @@ import {
   shareProject
 } from './firebase.js';
 import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJSON } from './utils/helpers.js';
-
+import { generateMagicBranches, checkPlotHoles } from './engine/AIHelper.js';
 // ============================
 // App State
 // ============================
@@ -397,6 +397,8 @@ function initToolbar() {
     saveCurrentProject();
     showToast('Saving...', 'info', 1000);
   });
+  // AI Plot check button
+  document.getElementById('ai-check-btn')?.addEventListener('click', handleAiCheck);
 }
 
 function handleMenuAction(action) {
@@ -481,6 +483,62 @@ function handleMenuAction(action) {
     case 'logout':
       handleLogout();
       break;
+  }
+}
+
+async function handleAiCheck() {
+  if (canvas.graph.nodes.size < 3) {
+    showToast('Add at least 3 nodes to analyze plot holes!', 'error');
+    return;
+  }
+  
+  showToast('AI is checking for plot holes...', 'info', 5000);
+  
+  try {
+    const data = { nodes: Array.from(canvas.graph.nodes.values()).map(n => n.serialize()) };
+    const res = await checkPlotHoles(data);
+    
+    // Simplistic rendering for now
+    let msg = `Overall: ${res.overallFeedback}\n\n`;
+    (res.issues || []).forEach(issue => {
+      msg += `[${issue.severity}] ${issue.title}: ${issue.description}\nFix: ${issue.suggestion}\n\n`;
+    });
+    
+    alert("AI Plot Hole Analysis:\n\n" + msg);
+  } catch (err) {
+    showToast('AI Error: ' + err.message, 'error');
+  }
+}
+
+async function handleAiBranch(node) {
+  showToast('AI is generating magic branches...', 'info', 5000);
+  
+  try {
+    const data = { nodes: Array.from(canvas.graph.nodes.values()).map(n => n.serialize()) };
+    const res = await generateMagicBranches(data, node.id);
+    
+    const branches = res.branches || [];
+    if (branches.length === 0) throw new Error('No branches generated.');
+    
+    // Add nodes to the canvas
+    const startX = node.x + node.width + 100;
+    let startY = node.y - ((branches.length - 1) * 80);
+    
+    branches.forEach((b, idx) => {
+      const newNode = canvas.graph.addNode('story', startX, startY);
+      newNode.title = b.title;
+      newNode.description = b.description;
+      startY += 160;
+      
+      // Attempt to connect them automatically if outputs are available
+      // Note: A robust system would check port indices
+    });
+    
+    canvas.pushHistory();
+    canvas.render();
+    showToast(`Created ${branches.length} magic branches!`, 'success');
+  } catch (err) {
+    showToast('AI Error: ' + err.message, 'error');
   }
 }
 
@@ -1041,6 +1099,8 @@ function showContextMenu(info) {
       <button data-action="collapse"><span class="menu-icon">${info.node.collapsed ? '🔽' : '🔼'}</span> ${info.node.collapsed ? 'Expand' : 'Collapse'}</button>
       <button data-action="rename"><span class="menu-icon">✏️</span> Rename</button>
       <div class="menu-divider"></div>
+      <button data-action="ai-branch" style="color:var(--accent-cyan)"><span class="menu-icon">✨</span> AI Auto-Branch</button>
+      <div class="menu-divider"></div>
       <button data-action="delete" style="color:var(--accent-rose)"><span class="menu-icon">🗑️</span> Delete</button>
     `;
   } else if (info.connection) {
@@ -1105,6 +1165,9 @@ function showContextMenu(info) {
           break;
         case 'rename':
           if (info.node) canvas.editNodeTitle(info.node);
+          break;
+        case 'ai-branch':
+          if (info.node) handleAiBranch(info.node);
           break;
         case 'delete': canvas.deleteSelected(); break;
         case 'delete-connection':
