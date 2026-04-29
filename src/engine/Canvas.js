@@ -176,10 +176,19 @@ export class BlueprintCanvas {
       }
 
       // Check node hit
+      const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
       let hitNode = null;
+      let isResizeHandle = false;
+      
       for (let i = nodes.length - 1; i >= 0; i--) {
-        if (nodes[i].hitTest(wx, wy)) {
-          hitNode = nodes[i];
+        const n = nodes[i];
+        if (n.type === 'group' && wx >= n.x + n.width - 15 && wx <= n.x + n.width && wy >= n.y + n.height - 15 && wy <= n.y + n.height) {
+          hitNode = n;
+          isResizeHandle = true;
+          break;
+        }
+        if (n.hitTest(wx, wy)) {
+          hitNode = n;
           break;
         }
       }
@@ -189,7 +198,7 @@ export class BlueprintCanvas {
         this.pointerState.hasDraggedNode = false;
         
         // Handle collapse arrow
-        if (hitNode.hitTestHeader(wx, wy)) {
+        if (hitNode.hitTestHeader(wx, wy) && hitNode.type !== 'group') {
           const arrowX = hitNode.x + hitNode.width - 18;
           if (Math.abs(wx - arrowX) < 12 && Math.abs(wy - (hitNode.y + hitNode.headerHeight / 2)) < 12) {
             hitNode.collapsed = !hitNode.collapsed;
@@ -200,10 +209,29 @@ export class BlueprintCanvas {
           }
         }
 
+        if (isResizeHandle) {
+          this.isResizingNode = hitNode;
+          this.dragStartX = wx;
+          this.dragStartY = wy;
+          this.startNodeWidth = hitNode.width;
+          this.startNodeHeight = hitNode.height;
+          return;
+        }
+
         if (!e.shiftKey && !this.selectedNodes.has(hitNode.id)) {
           this.clearSelection();
         }
         this.selectNode(hitNode.id);
+        
+        if (hitNode.type === 'group') {
+          // Select all nodes inside the group
+          nodes.forEach(n => {
+            if (n.type !== 'group' && n.x >= hitNode.x && n.x + n.width <= hitNode.x + hitNode.width &&
+                n.y >= hitNode.y && n.y + n.height <= hitNode.y + hitNode.height) {
+              this.selectNode(n.id);
+            }
+          });
+        }
         
         this.isDragging = true;
         this.dragStartX = wx;
@@ -290,6 +318,22 @@ export class BlueprintCanvas {
       return;
     }
 
+    if (this.isResizingNode) {
+      const dx = wx - this.dragStartX;
+      const dy = wy - this.dragStartY;
+      
+      let newW = this.startNodeWidth + dx;
+      let newH = this.startNodeHeight + dy;
+      if (this.snapToGrid) {
+        newW = Math.round(newW / this.gridSize) * this.gridSize;
+        newH = Math.round(newH / this.gridSize) * this.gridSize;
+      }
+      this.isResizingNode.width = Math.max(100, newW);
+      this.isResizingNode.height = Math.max(100, newH);
+      this.render();
+      return;
+    }
+
     if (this.isDragging) {
       const dx = wx - this.dragStartX;
       const dy = wy - this.dragStartY;
@@ -327,7 +371,7 @@ export class BlueprintCanvas {
 
     // Default hover
     let hoveredNode = null;
-    const nodes = this.graph.getAllNodes();
+    const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
     for (let i = nodes.length - 1; i >= 0; i--) {
       if (nodes[i].hitTest(wx, wy)) {
         hoveredNode = nodes[i];
@@ -354,6 +398,14 @@ export class BlueprintCanvas {
     if (this.isPanning) {
       this.isPanning = false;
       this.canvas.style.cursor = this.spaceHeld ? 'grab' : 'default';
+      return;
+    }
+
+    if (this.isResizingNode) {
+      this.isResizingNode = null;
+      this.pushHistory();
+      this.notifyGraphChanged();
+      this.render();
       return;
     }
 
@@ -479,9 +531,13 @@ export class BlueprintCanvas {
     const sy = e.clientY - rect.top;
     const { x: wx, y: wy } = this.screenToWorld(sx, sy);
     
-    const nodes = this.graph.getAllNodes();
+    const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
     for (let i = nodes.length - 1; i >= 0; i--) {
-      if (nodes[i].hitTestHeader(wx, wy)) {
+      if (nodes[i].type === 'group' && wx >= nodes[i].x && wx <= nodes[i].x + nodes[i].width && wy >= nodes[i].y && wy <= nodes[i].y + 40) {
+        this.editNodeTitle(nodes[i]);
+        return;
+      }
+      if (nodes[i].hitTestHeader(wx, wy) && nodes[i].type !== 'group') {
         this.editNodeTitle(nodes[i]);
         return;
       }
@@ -497,7 +553,7 @@ export class BlueprintCanvas {
     if (this.onContextMenu) {
       // Check if right-click on a node
       let hitNode = null;
-      const nodes = this.graph.getAllNodes();
+      const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
       for (let i = nodes.length - 1; i >= 0; i--) {
         if (nodes[i].hitTest(wx, wy)) {
           hitNode = nodes[i];
@@ -612,10 +668,10 @@ export class BlueprintCanvas {
     this.canvas.style.cursor = 'default';
     
     // Find target port
-    const nodes = this.graph.getAllNodes();
+    const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
     for (let i = nodes.length - 1; i >= 0; i--) {
       const node = nodes[i];
-      if (node.id === this.connectFromNode.id) continue;
+      if (node.id === this.connectFromNode.id || node.type === 'group') continue;
       
       const portHit = node.hitTestPort(wx, wy);
       if (portHit && portHit.type !== this.connectFromType) {
@@ -1155,7 +1211,7 @@ export class BlueprintCanvas {
     }
     
     // Draw nodes
-    const nodes = this.graph.getAllNodes();
+    const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
     nodes.forEach(node => {
       const isHovered = this.hoveredNode === node;
       node.draw(ctx, isHovered, this.zoom);
@@ -1373,9 +1429,10 @@ export class BlueprintCanvas {
     mctx.translate(offsetX, offsetY);
     mctx.scale(scale, scale);
     
-    this.graph.getAllNodes().forEach(node => {
+    const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
+    nodes.forEach(node => {
       mctx.fillStyle = node.color;
-      mctx.globalAlpha = 0.6;
+      mctx.globalAlpha = node.type === 'group' ? 0.2 : 0.6;
       mctx.fillRect(node.x, node.y, node.width, node.height);
     });
     
@@ -1450,7 +1507,8 @@ export class BlueprintCanvas {
     });
     
     // Draw nodes
-    this.graph.getAllNodes().forEach(node => {
+    const nodes = this.graph.getAllNodes().sort((a, b) => (a.type === 'group' ? -1 : 1));
+    nodes.forEach(node => {
       node.draw(ectx, false, 1);
     });
     

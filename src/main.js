@@ -259,7 +259,14 @@ function initModeSwitcher() {
   if (!switcher) return;
   
   switcher.addEventListener('change', (e) => {
-    switchMode(e.target.value);
+    if (currentMode !== e.target.value) {
+      if (confirm('Switching modes will create a new project. Are you sure?')) {
+        switchMode(e.target.value);
+        newProject();
+      } else {
+        switcher.value = currentMode;
+      }
+    }
   });
 }
 

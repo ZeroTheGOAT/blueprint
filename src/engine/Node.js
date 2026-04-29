@@ -170,6 +170,17 @@ export const NODE_TYPES = {
       outputs: []
     },
     fields: ['title', 'endType', 'description', 'tags']
+  },
+  group: {
+    label: 'Comment Group',
+    color: '#ffffff',
+    icon: '📦',
+    category: 'Utility',
+    defaultPorts: {
+      inputs: [],
+      outputs: []
+    },
+    fields: ['title', 'color']
   }
 };
 
@@ -186,8 +197,8 @@ export class Node {
     this.type = type;
     this.x = x;
     this.y = y;
-    this.width = options.width || 220;
-    this.height = 0; // Computed
+    this.width = options.width || (type === 'group' ? 400 : 220);
+    this.height = options.height || 0; // Computed, or fixed for group
     this.title = options.title || NODE_TYPES[type]?.label || 'Node';
     this.description = options.description || '';
     this.tags = options.tags || [];
@@ -227,7 +238,7 @@ export class Node {
     })) || []);
     
     // Rendering constants
-    this.headerHeight = 36;
+    this.headerHeight = this.type === 'group' ? 40 : 36;
     this.portRadius = 7;
     this.portSpacing = 28;
     this.bodyPadding = 12;
@@ -235,6 +246,12 @@ export class Node {
   }
 
   computeHeight() {
+    if (this.type === 'group') {
+      if (!this.height || this.height < this.headerHeight + 20) {
+        this.height = Math.max(this.height || 0, 300);
+      }
+      return;
+    }
     if (this.collapsed) {
       this.height = this.headerHeight;
       return;
@@ -311,7 +328,40 @@ export class Node {
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 2;
     
-    // Node body
+    if (this.type === 'group') {
+      // Semi-transparent body
+      ctx.fillStyle = `rgba(${this.hexToRgb(color)}, 0.1)`;
+      ctx.beginPath();
+      this.roundRect(ctx, x, y, width, height, 8);
+      ctx.fill();
+      ctx.restore();
+      
+      // Border
+      ctx.strokeStyle = this.selected ? color : `rgba(${this.hexToRgb(color)}, 0.4)`;
+      ctx.lineWidth = this.selected ? 3 : 2;
+      ctx.beginPath();
+      this.roundRect(ctx, x, y, width, height, 8);
+      ctx.stroke();
+      
+      // Header text inside the box (no solid header block for group)
+      ctx.font = 'bold 20px Inter, sans-serif';
+      ctx.fillStyle = `rgba(${this.hexToRgb(color)}, 0.8)`;
+      ctx.textBaseline = 'top';
+      ctx.fillText(title, x + 16, y + 16);
+      
+      // Resize handle (bottom right)
+      ctx.fillStyle = `rgba(${this.hexToRgb(color)}, 0.6)`;
+      ctx.beginPath();
+      ctx.moveTo(x + width - 15, y + height);
+      ctx.lineTo(x + width, y + height);
+      ctx.lineTo(x + width, y + height - 15);
+      ctx.closePath();
+      ctx.fill();
+      
+      return; // Groups don't have ports or standard headers
+    }
+    
+    // Standard Node body
     ctx.fillStyle = 'rgba(22, 22, 40, 0.92)';
     ctx.beginPath();
     this.roundRect(ctx, x, y, width, height, 8);
@@ -462,11 +512,21 @@ export class Node {
   }
 
   adjustColor(hex, amount) {
-    const num = parseInt(hex.replace('#', ''), 16);
-    const r = Math.max(0, Math.min(255, (num >> 16) + amount));
-    const g = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amount));
-    const b = Math.max(0, Math.min(255, (num & 0x0000FF) + amount));
+    const rgb = this.hexToRgb(hex);
+    if (!rgb) return hex;
+    const parts = rgb.split(',').map(Number);
+    const r = Math.max(0, Math.min(255, parts[0] + amount));
+    const g = Math.max(0, Math.min(255, parts[1] + amount));
+    const b = Math.max(0, Math.min(255, parts[2] + amount));
     return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+  }
+
+  hexToRgb(hex) {
+    let c = hex.replace('#', '');
+    if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    const num = parseInt(c, 16);
+    if (isNaN(num)) return '255,255,255';
+    return `${(num >> 16) & 255},${(num >> 8) & 255},${num & 255}`;
   }
 
   serialize() {
@@ -476,6 +536,7 @@ export class Node {
       x: this.x,
       y: this.y,
       width: this.width,
+      height: this.height,
       title: this.title,
       description: this.description,
       tags: [...this.tags],
@@ -505,6 +566,7 @@ export class Node {
     const node = new Node(data.type, data.x, data.y, {
       id: data.id,
       width: data.width,
+      height: data.height,
       title: data.title,
       description: data.description,
       tags: data.tags,
