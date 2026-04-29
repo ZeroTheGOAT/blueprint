@@ -184,11 +184,21 @@ export async function listProjects(userId, userEmail, mode = 'my-projects') {
       });
     };
 
-    if (mode === 'all-projects' && userEmail === 'hariprasadhp637@gmail.com') {
-      // Admin: Fetch ALL projects
+    if (mode === 'admin-view' && userEmail === 'hariprasadhp637@gmail.com') {
+      // Admin: Fetch ALL projects except admin's own projects
       const adminQuery = query(collectionGroup(db, 'blueprint'));
       const adminSnapshot = await getDocs(adminQuery);
-      processDocs(adminSnapshot);
+      
+      const filteredDocs = [];
+      adminSnapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        const pathOwnerId = docSnap.ref.parent.parent?.id || data.ownerId;
+        // Skip projects owned by the admin
+        if (pathOwnerId !== userId && data.ownerId !== userId) {
+          filteredDocs.push(docSnap);
+        }
+      });
+      processDocs(filteredDocs);
     } else if (mode === 'shared-projects') {
       // Fetch ONLY shared projects
       if (userEmail) {

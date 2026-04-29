@@ -1274,15 +1274,15 @@ function initProjectModal() {
 async function showProjectModal(mode = 'my-projects') {
   const modal = document.getElementById('project-modal');
   const list = document.getElementById('project-list');
-  const allProjectsTab = document.getElementById('all-projects-tab');
+  const adminViewTab = document.getElementById('admin-view-tab');
   modal.classList.remove('hidden');
   
   if (!currentUser) return;
 
   if (currentUser.email === 'hariprasadhp637@gmail.com') {
-    allProjectsTab?.classList.remove('hidden');
+    adminViewTab?.classList.remove('hidden');
   } else {
-    allProjectsTab?.classList.add('hidden');
+    adminViewTab?.classList.add('hidden');
   }
   
   // Visually update the active tab
@@ -1341,7 +1341,7 @@ async function showProjectModal(mode = 'my-projects') {
     item.innerHTML = `
       <div class="project-icon">🔷</div>
       <div class="project-details">
-        ${mode === 'all-projects' && proj.ownerContact ? `<div class="project-owner-contact">${escapeHtml(proj.ownerContact)}</div>` : ''}
+        ${mode === 'admin-view' && proj.ownerContact ? `<div class="project-owner-contact">${escapeHtml(proj.ownerContact)}</div>` : ''}
         <div class="project-title">${escapeHtml(proj.name || 'Untitled')} ${badge}</div>
         <div class="project-meta">${proj.nodeCount || 0} nodes · ${formatDate(proj.updatedAt)}</div>
       </div>
