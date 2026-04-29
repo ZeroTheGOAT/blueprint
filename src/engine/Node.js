@@ -187,8 +187,8 @@ export const NODE_TYPES = {
 // Port type colors
 export const PORT_COLORS = {
   flow: '#ffffff',
-  data: '#00d4ff',
-  event: '#f59e0b'
+  data: '#06b6d4',  // Cyan for data
+  event: '#ef4444'  // Red for events
 };
 
 export class Node {
@@ -361,22 +361,22 @@ export class Node {
       return; // Groups don't have ports or standard headers
     }
     
-    // Standard Node body
-    ctx.fillStyle = 'rgba(22, 22, 40, 0.92)';
+    // Standard Node body (UE5 Glassmorphism)
+    ctx.fillStyle = 'rgba(15, 15, 15, 0.85)';
     ctx.beginPath();
-    this.roundRect(ctx, x, y, width, height, 8);
+    this.roundRectCustom(ctx, x, y, width, height, 8, 2); // Sharper bottom corners
     ctx.fill();
     ctx.restore();
     
-    // Node border
+    // Node border & selection glow
     ctx.strokeStyle = this.selected 
-      ? color
+      ? '#ff9800' // UE5 Selection Orange
       : isHovered 
-        ? 'rgba(255,255,255,0.15)' 
-        : 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = this.selected ? 2 : 1;
+        ? 'rgba(255,255,255,0.2)' 
+        : 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = this.selected ? 3 : 1;
     ctx.beginPath();
-    this.roundRect(ctx, x, y, width, height, 8);
+    this.roundRectCustom(ctx, x, y, width, height, 8, 2);
     ctx.stroke();
     
     // Header gradient
@@ -429,27 +429,14 @@ export class Node {
       const px = x;
       const portColor = PORT_COLORS[port.type] || PORT_COLORS.data;
       
-      // Port circle
-      ctx.beginPath();
-      ctx.arc(px, py, portRadius, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(22, 22, 40, 0.95)';
-      ctx.fill();
-      ctx.strokeStyle = portColor;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      // Inner dot
-      ctx.beginPath();
-      ctx.arc(px, py, 3, 0, Math.PI * 2);
-      ctx.fillStyle = portColor;
-      ctx.fill();
+      this.drawPin(ctx, px, py, port.type, portColor, false);
       
       // Port label
       ctx.font = '11px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      ctx.fillText(port.name, px + portRadius + 6, py);
+      ctx.fillText(port.name, px + 12, py);
     });
     
     // Output ports
@@ -458,45 +445,72 @@ export class Node {
       const px = x + width;
       const portColor = PORT_COLORS[port.type] || PORT_COLORS.data;
       
-      // Port circle
-      ctx.beginPath();
-      ctx.arc(px, py, portRadius, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(22, 22, 40, 0.95)';
-      ctx.fill();
-      ctx.strokeStyle = portColor;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      
-      // Inner dot
-      ctx.beginPath();
-      ctx.arc(px, py, 3, 0, Math.PI * 2);
-      ctx.fillStyle = portColor;
-      ctx.fill();
+      this.drawPin(ctx, px, py, port.type, portColor, true);
       
       // Port label
       ctx.font = '11px Inter, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
       ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText(port.name, px - portRadius - 6, py);
+      ctx.fillText(port.name, px - 12, py);
     });
     
     // Reset text align
     ctx.textAlign = 'left';
   }
 
+  drawPin(ctx, px, py, type, color, isOutput) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.fillStyle = color; // For connected state, assuming connected for now. A true implementation would check connection status.
+    
+    if (type === 'flow') {
+      // UE5 Execution Pin (Pentagon Arrow)
+      const w = 10;
+      const h = 12;
+      const offset = isOutput ? 2 : -2; // Slightly jut out
+      const startX = px - w/2 + offset;
+      const startY = py - h/2;
+      
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(startX + 6, startY);
+      ctx.lineTo(startX + w, startY + h/2);
+      ctx.lineTo(startX + 6, startY + h);
+      ctx.lineTo(startX, startY + h);
+      ctx.closePath();
+      
+      // Draw hollow with a slight fill
+      ctx.fillStyle = 'rgba(255,255,255,0.2)'; // Hollow look for flow
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // Data Pin (Circle)
+      ctx.beginPath();
+      ctx.arc(px + (isOutput ? 2 : -2), py, 5, 0, Math.PI * 2);
+      ctx.fillStyle = color; // Solid for data
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  // Utility: rounded rect custom corners
+  roundRectCustom(ctx, x, y, w, h, topR, botR) {
+    ctx.moveTo(x + topR, y);
+    ctx.lineTo(x + w - topR, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + topR);
+    ctx.lineTo(x + w, y + h - botR);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - botR, y + h);
+    ctx.lineTo(x + botR, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - botR);
+    ctx.lineTo(x, y + topR);
+    ctx.quadraticCurveTo(x, y, x + topR, y);
+    ctx.closePath();
+  }
+
   // Utility: rounded rect
   roundRect(ctx, x, y, w, h, r) {
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
+    this.roundRectCustom(ctx, x, y, w, h, r, r);
   }
 
   // Rounded rect top only

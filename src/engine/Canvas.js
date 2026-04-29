@@ -1388,8 +1388,11 @@ export class BlueprintCanvas {
   }
 
   drawBezier(ctx, from, to, color, isDashed) {
+    const isFlow = color === '#ffffff';
+    
+    // Flow wires are stiffer, data wires loop more smoothly
     const dx = Math.abs(to.x - from.x);
-    const cpOffset = Math.max(dx * 0.5, 50);
+    const cpOffset = isFlow ? Math.max(dx * 0.4, 30) : Math.max(dx * 0.6, 60);
     
     ctx.beginPath();
     ctx.moveTo(from.x, from.y);
@@ -1405,15 +1408,16 @@ export class BlueprintCanvas {
       ctx.setLineDash([]);
     }
     
+    // Execution wires are thicker
     ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
-    ctx.globalAlpha = isDashed ? 0.6 : 0.8;
+    ctx.lineWidth = isFlow ? 4.0 : 2.5;
+    ctx.globalAlpha = isDashed ? 0.6 : 0.9;
     ctx.stroke();
     
     // Glow
     ctx.strokeStyle = color;
-    ctx.lineWidth = 6;
-    ctx.globalAlpha = 0.1;
+    ctx.lineWidth = isFlow ? 8 : 6;
+    ctx.globalAlpha = isFlow ? 0.2 : 0.1;
     ctx.stroke();
     
     ctx.globalAlpha = 1;
