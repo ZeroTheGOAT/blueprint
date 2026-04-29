@@ -529,23 +529,8 @@ async function handleAiBranch(node) {
     const branches = res.branches || [];
     if (branches.length === 0) throw new Error('No branches generated.');
     
-    // Add nodes to the canvas
-    const startX = node.x + node.width + 100;
-    let startY = node.y - ((branches.length - 1) * 80);
-    
-    branches.forEach((b, idx) => {
-      const newNode = canvas.graph.addNode('story', startX, startY);
-      newNode.title = b.title;
-      newNode.description = b.description;
-      startY += 160;
-      
-      // Attempt to connect them automatically if outputs are available
-      // Note: A robust system would check port indices
-    });
-    
-    canvas.pushHistory();
-    canvas.render();
-    showToast(`Created ${branches.length} magic branches!`, 'success');
+    // Show selection popup
+    showBranchPicker(branches, node);
   } catch (err) {
     if (err.message.includes('No API key found')) {
       const key = prompt('Please enter your Gemini API key (it will be saved locally in your browser):');
@@ -557,6 +542,73 @@ async function handleAiBranch(node) {
       showToast('AI Error: ' + err.message, 'error');
     }
   }
+}
+
+function showBranchPicker(branches, sourceNode) {
+  // Remove any existing picker
+  document.getElementById('ai-branch-picker')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'ai-branch-picker';
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal-card ai-branch-modal">
+      <div class="ai-branch-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--accent-cyan)" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span>AI Generated Branches</span>
+        <button class="ai-branch-close">✕</button>
+      </div>
+      <p class="ai-branch-subtitle">Branching from: <strong>${escapeHtml(sourceNode.title)}</strong></p>
+      <div class="ai-branch-list">
+        ${branches.map((b, i) => `
+          <label class="ai-branch-option" for="branch-${i}">
+            <input type="checkbox" id="branch-${i}" data-index="${i}" checked />
+            <div class="ai-branch-content">
+              <div class="ai-branch-title">${escapeHtml(b.title)}</div>
+              <div class="ai-branch-desc">${escapeHtml(b.description)}</div>
+            </div>
+          </label>
+        `).join('')}
+      </div>
+      <div class="ai-branch-actions">
+        <button class="ai-branch-cancel">Cancel</button>
+        <button class="ai-branch-create">Create Selected</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  // Close handlers
+  overlay.querySelector('.ai-branch-close').addEventListener('click', () => overlay.remove());
+  overlay.querySelector('.ai-branch-cancel').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  // Create handler
+  overlay.querySelector('.ai-branch-create').addEventListener('click', () => {
+    const checked = overlay.querySelectorAll('input[type="checkbox"]:checked');
+    if (checked.length === 0) {
+      showToast('Select at least one branch!', 'error');
+      return;
+    }
+
+    const startX = sourceNode.x + sourceNode.width + 120;
+    let startY = sourceNode.y - ((checked.length - 1) * 90);
+
+    checked.forEach((cb) => {
+      const idx = parseInt(cb.dataset.index);
+      const b = branches[idx];
+      const newNode = canvas.graph.addNode('story', startX, startY);
+      newNode.title = b.title;
+      newNode.description = b.description;
+      startY += 180;
+    });
+
+    canvas.pushHistory();
+    canvas.render();
+    showToast(`Created ${checked.length} branch${checked.length > 1 ? 'es' : ''}!`, 'success');
+    overlay.remove();
+  });
 }
 
 // ============================

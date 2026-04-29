@@ -111,25 +111,15 @@ export async function generateMagicBranches(graphData, targetNodeId) {
   
   if (!targetNode) throw new Error('Target node not found.');
 
-  const simplifiedGraph = nodes.map(n => `[${n.type}] ${n.title}: ${n.description || 'No description'}`).join('\n');
+  const context = nodes.map(n => `- ${n.title}: ${n.description || 'No description'}`).join('\n');
 
-  const prompt = `You are an expert game narrative designer. I am building a story using a node-based editor.
+  const prompt = `Given this story context:
+${context}
 
-Current story nodes:
-${simplifiedGraph}
+The current node is "${targetNode.title}" (${targetNode.description || 'no description'}).
 
-Generate 3 branching options from this node:
-TITLE: "${targetNode.title}"
-DESCRIPTION: "${targetNode.description || 'Empty'}"
-TYPE: "${targetNode.type}"
-
-Respond with ONLY a JSON object wrapped in <output> tags. No other text outside the tags.
-
-<output>
-{"branches":[{"title":"Branch Title","description":"What happens in this branch."},{"title":"Branch Title 2","description":"What happens."},{"title":"Branch Title 3","description":"What happens."}]}
-</output>
-
-Now generate your 3 unique, creative branches:`;
+Generate 3 possible story branches that could follow. Output ONLY this JSON, nothing else:
+{"branches":[{"title":"title1","description":"desc1"},{"title":"title2","description":"desc2"},{"title":"title3","description":"desc3"}]}`;
 
   const rawText = await callGemmaRaw(prompt);
   return extractJSON(rawText);
