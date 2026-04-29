@@ -484,6 +484,24 @@ function handleMenuAction(action) {
     case 'logout':
       handleLogout();
       break;
+    case 'switch-mode-3d':
+      if (currentMode !== '3d-story' && confirm('Switching modes will create a new project. Are you sure?')) {
+        switchMode('3d-story');
+        newProject();
+      }
+      break;
+    case 'switch-mode-2d':
+      if (currentMode !== '2d-platformer' && confirm('Switching modes will create a new project. Are you sure?')) {
+        switchMode('2d-platformer');
+        newProject();
+      }
+      break;
+    case 'trigger-ai-check':
+      handleAiCheck();
+      break;
+    case 'trigger-ai-chat':
+      document.getElementById('ai-chat-panel')?.classList.toggle('open');
+      break;
   }
 }
 
