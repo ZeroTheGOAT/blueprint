@@ -62,12 +62,21 @@ async function callGemini(prompt) {
 
   // Extract the JSON object using regex if Gemma added conversational text
   let jsonString = textResponse;
-  const jsonMatch = textResponse.match(/\{[\s\S]*\}/);
-  if (jsonMatch) {
-    jsonString = jsonMatch[0];
+  
+  // Try to find the content inside <output> tags first
+  const outputMatch = textResponse.match(/<output>([\s\S]*?)<\/output>/i);
+  if (outputMatch) {
+    jsonString = outputMatch[1].trim();
   } else {
-    // If no JSON block is found, try to clean it anyway
-    jsonString = textResponse.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    // Fallback: try to find the last occurrence of a JSON block
+    // Sometimes it echoes the schema, so we want the LAST big { ... } block
+    const lastBracketIndex = textResponse.lastIndexOf('}');
+    const firstBracketIndex = textResponse.lastIndexOf('{', lastBracketIndex);
+    if (firstBracketIndex !== -1 && lastBracketIndex !== -1) {
+      jsonString = textResponse.substring(firstBracketIndex, lastBracketIndex + 1);
+    } else {
+      jsonString = textResponse.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    }
   }
 
   try {
@@ -125,7 +134,13 @@ export async function generateMagicBranches(graphData, targetNodeId) {
       ]
     }
     
-    RETURN ONLY RAW JSON. DO NOT INCLUDE ANY CONVERSATIONAL TEXT.
+    IMPORTANT: You must wrap your entire final JSON object inside <output> and </output> XML tags.
+    DO NOT output the JSON outside of these tags.
+    
+    Example response format:
+    <output>
+    { "branches": ... }
+    </output>
   `;
 
   return await callGemini(prompt);
@@ -166,7 +181,13 @@ export async function checkPlotHoles(graphData) {
       "overallFeedback": "A short summary of the story's current state."
     }
     
-    RETURN ONLY RAW JSON. DO NOT INCLUDE ANY CONVERSATIONAL TEXT.
+    IMPORTANT: You must wrap your entire final JSON object inside <output> and </output> XML tags.
+    DO NOT output the JSON outside of these tags.
+    
+    Example response format:
+    <output>
+    { "issues": ... }
+    </output>
   `;
 
   return await callGemini(prompt);
