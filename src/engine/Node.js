@@ -347,7 +347,16 @@ export class Node {
       ctx.font = 'bold 20px Inter, sans-serif';
       ctx.fillStyle = `rgba(${this.hexToRgb(color)}, 0.8)`;
       ctx.textBaseline = 'top';
-      ctx.fillText(title, x + 16, y + 16);
+      const maxGroupTitleWidth = width - 32;
+      let displayGroupTitle = title;
+      if (ctx.measureText(title).width > maxGroupTitleWidth) {
+        let t = title;
+        while (t.length > 0 && ctx.measureText(t + '...').width > maxGroupTitleWidth) {
+          t = t.slice(0, -1);
+        }
+        displayGroupTitle = t + '...';
+      }
+      ctx.fillText(displayGroupTitle, x + 16, y + 16);
       
       // Resize handle (bottom right)
       ctx.fillStyle = `rgba(${this.hexToRgb(color)}, 0.6)`;
@@ -401,7 +410,18 @@ export class Node {
     ctx.shadowOffsetY = 1;
     ctx.fillStyle = '#ffffff';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${icon} ${title}`, x + 12, y + headerHeight / 2);
+    
+    let displayTitle = `${icon} ${title}`;
+    const maxTitleWidth = width - 40; // Leave space for padding and collapse indicator
+    if (ctx.measureText(displayTitle).width > maxTitleWidth) {
+      let t = displayTitle;
+      while (t.length > 0 && ctx.measureText(t + '...').width > maxTitleWidth) {
+        t = t.slice(0, -1);
+      }
+      displayTitle = t + '...';
+    }
+    
+    ctx.fillText(displayTitle, x + 12, y + headerHeight / 2);
     
     // Reset shadow
     ctx.shadowColor = 'transparent';
