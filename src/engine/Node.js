@@ -177,8 +177,8 @@ export const NODE_TYPES = {
     icon: '📦',
     category: 'Utility',
     defaultPorts: {
-      inputs: [],
-      outputs: []
+      inputs: [{ name: 'In', type: 'flow' }],
+      outputs: [{ name: 'Out', type: 'flow' }]
     },
     fields: ['title', 'color']
   }
@@ -367,7 +367,9 @@ export class Node {
       ctx.closePath();
       ctx.fill();
       
-      return; // Groups don't have ports or standard headers
+      this.drawPorts(ctx, isHovered, 0);
+      
+      return; // Groups don't have standard headers
     }
     
     // Standard Node body (UE5 Glassmorphism)
