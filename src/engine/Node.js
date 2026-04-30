@@ -247,8 +247,12 @@ export class Node {
 
   computeHeight() {
     if (this.type === 'group') {
-      if (!this.height || this.height < this.headerHeight + 20) {
-        this.height = Math.max(this.height || 0, 300);
+      const maxPorts = Math.max(this.inputs.length, this.outputs.length);
+      const portsHeight = maxPorts * this.portSpacing;
+      const minPortsHeight = this.headerHeight + this.bodyPadding + portsHeight + this.bodyPadding;
+      
+      if (!this.height || this.height < minPortsHeight) {
+        this.height = Math.max(this.height || 0, Math.max(300, minPortsHeight));
       }
       return;
     }
@@ -367,7 +371,7 @@ export class Node {
       ctx.closePath();
       ctx.fill();
       
-      this.drawPorts(ctx, isHovered, 0);
+      this.drawPorts(ctx, isHovered, this.getDescOffset());
       
       return; // Groups don't have standard headers
     }
@@ -498,8 +502,8 @@ export class Node {
   }
 
   drawPin(ctx, px, py, type, color, isOutput) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; // Dark outline for visibility on any background
+    ctx.lineWidth = 1.2;
     
     if (type === 'flow') {
       // UE5 Execution Pin (Pentagon Arrow)
@@ -517,8 +521,13 @@ export class Node {
       ctx.closePath();
       
       // Usually solid if connected, but we'll draw solid white for flow
-      ctx.fillStyle = 'rgba(255,255,255,0.8)'; 
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'; 
       ctx.fill();
+      ctx.stroke();
+      
+      // Also draw inner accent
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.8;
       ctx.stroke();
     } else {
       // Data Pin (Circle)
