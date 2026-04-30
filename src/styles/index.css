@@ -1122,18 +1122,38 @@ button {
   border-radius: 50%;
 }
 
-.prop-port-name {
+.prop-port-name-input {
   flex: 1;
+  background: transparent;
+  border: 1px solid transparent;
   color: var(--text-secondary);
+  font-size: 12px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.prop-port-name-input:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-primary);
+}
+
+.prop-port-name-input:focus {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+  outline: none;
 }
 
 .prop-port-remove {
   color: var(--text-muted);
   cursor: pointer;
   font-size: 14px;
+  padding: 0 4px;
+  border-radius: 4px;
 }
 
 .prop-port-remove:hover {
+  background: var(--bg-hover);
   color: var(--accent-rose);
 }
 
