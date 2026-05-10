@@ -93,3 +93,22 @@ User: ${userMessage}`;
 
   return await callModel(prompt, MODEL_CHAT, 8192);
 }
+
+/**
+ * AI Plot Checker Chat — interactive plot hole checking.
+ */
+export async function chatWithPlotChecker(userMessage, graphData) {
+  const nodes = graphData.nodes || [];
+  const graph = nodes.length > 0
+    ? nodes.map(n => `[${n.type}] ${n.title}: ${n.description || ''}`).join('\n')
+    : '(No nodes yet)';
+
+  const prompt = `You are an expert narrative Plot Hole Checker. The user is designing a story with these nodes:
+${graph}
+
+Analyze the story graph and identify any plot holes, inconsistencies, or narrative dead ends. Answer the user's specific questions regarding the plot holes and provide massive, extremely detailed analysis and suggestions on how to fix them without holding back on length or detail. Do NOT use JSON. Write it as a natural, readable response.
+
+User: ${userMessage}`;
+
+  return await callModel(prompt, MODEL_STRUCTURED, 8192);
+}

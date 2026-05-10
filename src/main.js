@@ -24,9 +24,10 @@ import {
   listProjectVersions
 } from './firebase.js';
 import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJSON } from './utils/helpers.js';
-import { checkPlotHoles, chatWithAI, setApiKey } from './engine/AIHelper.js';
+import { checkPlotHoles, chatWithAI, chatWithPlotChecker, setApiKey } from './engine/AIHelper.js';
 // ============================
 // App State
+let currentAiMode = 'assistant';
 // ============================
 
 let canvas = null;
@@ -583,6 +584,25 @@ function initAIChat() {
   
   if (!panel || !toggleBtn) return;
 
+  const modeAssistant = document.getElementById('ai-mode-assistant');
+  const modePlot = document.getElementById('ai-mode-plot');
+
+  if (modeAssistant && modePlot) {
+    modeAssistant.addEventListener('click', () => {
+      currentAiMode = 'assistant';
+      modeAssistant.classList.add('active');
+      modePlot.classList.remove('active');
+      input.placeholder = "Ask about your story...";
+    });
+    
+    modePlot.addEventListener('click', () => {
+      currentAiMode = 'plot';
+      modePlot.classList.add('active');
+      modeAssistant.classList.remove('active');
+      input.placeholder = "Ask the Plot Checker...";
+    });
+  }
+
   toggleBtn.addEventListener('click', () => {
     panel.classList.toggle('hidden');
     toggleBtn.classList.toggle('active');
@@ -634,7 +654,14 @@ function initAIChat() {
       canvas.graph.nodes.forEach(n => {
         nodes.push({ id: n.id, type: n.type, title: n.title, description: n.description || '' });
       });
-      const response = await chatWithAI(msg, { nodes });
+      
+      let response;
+      if (currentAiMode === 'plot') {
+        response = await chatWithPlotChecker(msg, { nodes });
+      } else {
+        response = await chatWithAI(msg, { nodes });
+      }
+      
       thinkingBubble.remove();
       addBubble(response, 'ai');
     } catch (err) {
