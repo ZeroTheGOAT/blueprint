@@ -240,8 +240,8 @@ export async function listProjects(userId, userEmail, mode = 'my-projects') {
         }
       });
       processDocs(filteredDocs);
-    } else if (mode === 'shared') {
-      // Fetch ONLY shared projects
+    } else if (mode === 'shared-projects') {
+      // Fetch ONLY shared projects (NOT owned by the current user)
       if (userEmail) {
         const sharedQuery = query(
           collectionGroup(db, 'blueprint'),
