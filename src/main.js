@@ -1606,6 +1606,7 @@ async function saveCurrentProject() {
     localStorage.setItem('blueprint_lastProjectId', currentProjectId);
     localStorage.setItem('blueprint_lastOwnerId', ownerId);
     localStorage.removeItem(`blueprint_cache_${currentProjectId}`);
+    saveProjectVersion(ownerId, currentProjectId, { graphData, nodeCount }, 'Auto-save at ' + new Date().toLocaleTimeString());
   } else {
     updateSaveStatus('unsaved');
     showToast('Save failed: ' + error, 'error');
