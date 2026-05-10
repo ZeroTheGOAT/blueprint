@@ -2181,6 +2181,16 @@ function hideVersionModal() {
 }
 
 function restoreVersion(versionData) {
+  if (versionData.graphData) {
+    if (versionData.graphData.type === 'platformer2d') {
+      switchMode('2d-platformer');
+      if (platformerCanvas) platformerCanvas.loadProjectData(versionData.graphData);
+    } else {
+      switchMode('3d-story');
+      canvas.loadProjectData(versionData.graphData);
+    }
+    showToast('Version restored', 'success');
+    markDirty(); // Mark dirty so it gets saved to main branch on next save
   }
 }
 
