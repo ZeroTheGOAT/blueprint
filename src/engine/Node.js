@@ -177,8 +177,8 @@ export const NODE_TYPES = {
     icon: '📦',
     category: 'Utility',
     defaultPorts: {
-      inputs: [],
-      outputs: []
+      inputs: [{ name: 'In', type: 'flow' }],
+      outputs: [{ name: 'Out', type: 'flow' }]
     },
     fields: ['title', 'color']
   }
@@ -247,8 +247,12 @@ export class Node {
 
   computeHeight() {
     if (this.type === 'group') {
-      if (!this.height || this.height < this.headerHeight + 20) {
-        this.height = Math.max(this.height || 0, 300);
+      const maxPorts = Math.max(this.inputs.length, this.outputs.length);
+      const portsHeight = maxPorts * this.portSpacing;
+      const minPortsHeight = this.headerHeight + this.bodyPadding + portsHeight + this.bodyPadding;
+      
+      if (!this.height || this.height < minPortsHeight) {
+        this.height = Math.max(this.height || 0, Math.max(300, minPortsHeight));
       }
       return;
     }
@@ -347,7 +351,16 @@ export class Node {
       ctx.font = 'bold 20px Inter, sans-serif';
       ctx.fillStyle = `rgba(${this.hexToRgb(color)}, 0.8)`;
       ctx.textBaseline = 'top';
-      ctx.fillText(title, x + 16, y + 16);
+      const maxGroupTitleWidth = width - 32;
+      let displayGroupTitle = title;
+      if (ctx.measureText(title).width > maxGroupTitleWidth) {
+        let t = title;
+        while (t.length > 0 && ctx.measureText(t + '...').width > maxGroupTitleWidth) {
+          t = t.slice(0, -1);
+        }
+        displayGroupTitle = t + '...';
+      }
+      ctx.fillText(displayGroupTitle, x + 16, y + 16);
       
       // Resize handle (bottom right)
       ctx.fillStyle = `rgba(${this.hexToRgb(color)}, 0.6)`;
@@ -358,7 +371,9 @@ export class Node {
       ctx.closePath();
       ctx.fill();
       
-      return; // Groups don't have ports or standard headers
+      this.drawPorts(ctx, isHovered, this.getDescOffset());
+      
+      return; // Groups don't have standard headers
     }
     
     // Standard Node body (UE5 Glassmorphism)
@@ -401,7 +416,18 @@ export class Node {
     ctx.shadowOffsetY = 1;
     ctx.fillStyle = '#ffffff';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${icon} ${title}`, x + 12, y + headerHeight / 2);
+    
+    let displayTitle = `${icon} ${title}`;
+    const maxTitleWidth = width - 40; // Leave space for padding and collapse indicator
+    if (ctx.measureText(displayTitle).width > maxTitleWidth) {
+      let t = displayTitle;
+      while (t.length > 0 && ctx.measureText(t + '...').width > maxTitleWidth) {
+        t = t.slice(0, -1);
+      }
+      displayTitle = t + '...';
+    }
+    
+    ctx.fillText(displayTitle, x + 12, y + headerHeight / 2);
     
     // Reset shadow
     ctx.shadowColor = 'transparent';
@@ -476,8 +502,8 @@ export class Node {
   }
 
   drawPin(ctx, px, py, type, color, isOutput) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; // Dark outline for visibility on any background
+    ctx.lineWidth = 1.2;
     
     if (type === 'flow') {
       // UE5 Execution Pin (Pentagon Arrow)
@@ -495,8 +521,13 @@ export class Node {
       ctx.closePath();
       
       // Usually solid if connected, but we'll draw solid white for flow
-      ctx.fillStyle = 'rgba(255,255,255,0.8)'; 
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'; 
       ctx.fill();
+      ctx.stroke();
+      
+      // Also draw inner accent
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 0.8;
       ctx.stroke();
     } else {
       // Data Pin (Circle)

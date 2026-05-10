@@ -955,7 +955,7 @@ function updateProperties(selectedNodes, forceOpen = false) {
         ${node.inputs.map((p, i) => `
           <div class="prop-port-item">
             <span class="prop-port-dot" style="background:${PORT_COLORS[p.type] || PORT_COLORS.data}"></span>
-            <span class="prop-port-name">${escapeHtml(p.name)}</span>
+            <input type="text" class="prop-port-name-input" value="${escapeHtml(p.name)}" data-port-type="input" data-port-index="${i}" />
             <span class="prop-port-remove" data-port-type="input" data-port-index="${i}">×</span>
           </div>
         `).join('')}
@@ -969,7 +969,7 @@ function updateProperties(selectedNodes, forceOpen = false) {
         ${node.outputs.map((p, i) => `
           <div class="prop-port-item">
             <span class="prop-port-dot" style="background:${PORT_COLORS[p.type] || PORT_COLORS.data}"></span>
-            <span class="prop-port-name">${escapeHtml(p.name)}</span>
+            <input type="text" class="prop-port-name-input" value="${escapeHtml(p.name)}" data-port-type="output" data-port-index="${i}" />
             <span class="prop-port-remove" data-port-type="output" data-port-index="${i}">×</span>
           </div>
         `).join('')}
@@ -1126,6 +1126,21 @@ function updateProperties(selectedNodes, forceOpen = false) {
       canvas.pushHistory();
       markDirty();
     });
+  });
+  
+  // Port name editing
+  document.querySelectorAll('.prop-port-name-input').forEach(input => {
+    input.addEventListener('input', debounce(() => {
+      const type = input.dataset.portType;
+      const idx = parseInt(input.dataset.portIndex);
+      if (type === 'input') {
+        node.inputs[idx].name = input.value;
+      } else {
+        node.outputs[idx].name = input.value;
+      }
+      canvas.render();
+      markDirty();
+    }, 300));
   });
   
   // Port management

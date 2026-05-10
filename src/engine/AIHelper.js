@@ -72,7 +72,7 @@ ${graph}
 
 Analyze the story graph and write a detailed paragraph or two identifying any plot holes, inconsistencies, or narrative dead ends. Provide suggestions on how to fix them. Do NOT use JSON. Write it as a natural, readable response.`;
 
-  return await callModel(prompt, MODEL_STRUCTURED, null);
+  return await callModel(prompt, MODEL_STRUCTURED, 4096);
 }
 
 /**
@@ -91,5 +91,5 @@ Be concise and creative. Help with story ideas, characters, world-building, dial
 
 User: ${userMessage}`;
 
-  return await callModel(prompt, MODEL_CHAT, 1024);
+  return await callModel(prompt, MODEL_CHAT, 2048);
 }
