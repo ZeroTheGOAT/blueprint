@@ -179,6 +179,16 @@ export async function listProjectVersions(ownerId, projectId) {
   }
 }
 
+export async function deleteProjectVersion(ownerId, projectId, versionId) {
+  try {
+    await deleteDoc(doc(db, 'users', ownerId, 'blueprint', projectId, 'versions', versionId));
+    return { success: true, error: null };
+  } catch (error) {
+    console.error('Delete version error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function loadProject(userId, projectId) {
   try {
     const ref = doc(db, 'users', userId, 'blueprint', projectId);
@@ -230,7 +240,7 @@ export async function listProjects(userId, userEmail, mode = 'my-projects') {
         }
       });
       processDocs(filteredDocs);
-    } else if (mode === 'shared-projects') {
+    } else if (mode === 'shared') {
       // Fetch ONLY shared projects
       if (userEmail) {
         const sharedQuery = query(

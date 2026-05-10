@@ -21,13 +21,16 @@ import {
   deleteProject,
   shareProject,
   saveProjectVersion,
-  listProjectVersions
+  listProjectVersions,
+  deleteProjectVersion
 } from './firebase.js';
 import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJSON } from './utils/helpers.js';
 import { checkPlotHoles, chatWithAI, chatWithPlotChecker, setApiKey } from './engine/AIHelper.js';
 // ============================
 // App State
 let currentAiMode = 'assistant';
+let prePreviewState = null;
+let currentlyPreviewingVersion = null;
 // ============================
 
 let canvas = null;
@@ -532,15 +535,15 @@ async function handleAiCheck() {
   try {
     // Build simple data objects instead of calling serialize
     const nodes = [];
-    canvas.graph.nodes.forEach(n => {
-      nodes.push({ id: n.id, type: n.type, title: n.title, description: n.description || '' });
-    });
-    const res = await checkPlotHoles({ nodes });
+    const res = await checkPlotHoles(canvas.serialize());
     
-    // Open the chat panel and append the analysis as an AI bubble
+    const modePlot = document.getElementById('ai-mode-plot');
+    if (modePlot) modePlot.click(); // Automatically switch to plot mode
+
     const chatPanel = document.getElementById('ai-chat-panel');
     if (chatPanel) chatPanel.classList.remove('hidden');
-    const messages = document.getElementById('ai-chat-messages');
+    
+    const messages = document.getElementById('ai-chat-messages-plot');
     if (messages) {
       const bubble = document.createElement('div');
       bubble.className = 'ai-chat-bubble ai';
@@ -580,18 +583,21 @@ function initAIChat() {
   const closeBtn = document.getElementById('ai-chat-close');
   const input = document.getElementById('ai-chat-input');
   const sendBtn = document.getElementById('ai-chat-send');
-  const messages = document.getElementById('ai-chat-messages');
   
   if (!panel || !toggleBtn) return;
 
   const modeAssistant = document.getElementById('ai-mode-assistant');
   const modePlot = document.getElementById('ai-mode-plot');
+  const msgAssistant = document.getElementById('ai-chat-messages-assistant');
+  const msgPlot = document.getElementById('ai-chat-messages-plot');
 
   if (modeAssistant && modePlot) {
     modeAssistant.addEventListener('click', () => {
       currentAiMode = 'assistant';
       modeAssistant.classList.add('active');
       modePlot.classList.remove('active');
+      if(msgAssistant) msgAssistant.classList.remove('hidden');
+      if(msgPlot) msgPlot.classList.add('hidden');
       input.placeholder = "Ask about your story...";
     });
     
@@ -599,6 +605,8 @@ function initAIChat() {
       currentAiMode = 'plot';
       modePlot.classList.add('active');
       modeAssistant.classList.remove('active');
+      if(msgPlot) msgPlot.classList.remove('hidden');
+      if(msgAssistant) msgAssistant.classList.add('hidden');
       input.placeholder = "Ask the Plot Checker...";
     });
   }
@@ -616,16 +624,21 @@ function initAIChat() {
     toggleBtn.classList.remove('active');
   });
 
-  function addBubble(text, type) {
+  function addBubble(text, sender = 'user') {
+    const messages = document.getElementById(currentAiMode === 'plot' ? 'ai-chat-messages-plot' : 'ai-chat-messages-assistant');
+    if (!messages) return;
+    
     const bubble = document.createElement('div');
-    bubble.className = `ai-chat-bubble ${type}`;
-    if (type === 'ai') {
+    bubble.className = `ai-chat-bubble ${sender}`;
+    
+    const name = sender === 'ai' ? (currentAiMode === 'plot' ? 'Plot Checker' : 'AI Assistant') : 'You';
+    if (sender === 'ai') {
       // Convert newlines, bullet points, and basic markdown
       const formatted = text
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\*(.*?)\*/g, '<em>$1</em>')
         .replace(/\n/g, '<br>');
-      bubble.innerHTML = `<strong>AI Assistant</strong><p>${formatted}</p>`;
+      bubble.innerHTML = `<strong>${name}</strong><p>${formatted}</p>`;
     } else {
       bubble.textContent = text;
     }
@@ -638,16 +651,17 @@ function initAIChat() {
     const msg = input.value.trim();
     if (!msg) return;
 
-    input.value = '';
-    sendBtn.disabled = true;
     addBubble(msg, 'user');
-
-    // Show thinking indicator
+    input.value = '';
+    
+    const messages = document.getElementById(currentAiMode === 'plot' ? 'ai-chat-messages-plot' : 'ai-chat-messages-assistant');
     const thinkingBubble = document.createElement('div');
     thinkingBubble.className = 'ai-chat-bubble ai thinking';
-    thinkingBubble.innerHTML = '<strong>AI Assistant</strong><p>Thinking...</p>';
-    messages.appendChild(thinkingBubble);
-    messages.scrollTop = messages.scrollHeight;
+    thinkingBubble.innerHTML = `<strong>${currentAiMode === 'plot' ? 'Plot Checker' : 'AI Assistant'}</strong><p>Thinking...</p>`;
+    if(messages) {
+      messages.appendChild(thinkingBubble);
+      messages.scrollTop = messages.scrollHeight;
+    }
 
     try {
       const nodes = [];
@@ -2127,23 +2141,34 @@ async function showVersionHistory() {
   versions.forEach(ver => {
     const item = document.createElement('div');
     item.className = 'project-item';
-
     item.innerHTML = `
-      <div class="project-icon">🔖</div>
+      <div class="project-icon">📄</div>
       <div class="project-details">
         <div class="project-title">${escapeHtml(ver.message || 'Untitled Version')}</div>
-        <div class="project-meta">${ver.nodeCount || 0} nodes · ${formatDate(ver.createdAt)}</div>
+        <div class="project-meta">${ver.nodeCount || 0} nodes • ${formatDate(ver.createdAt)}</div>
       </div>
       <div class="project-actions">
-        <button class="project-action-btn share" title="Restore this version">↩️ Restore</button>
+        <button class="project-action-btn share preview-btn" title="Preview this version">👁 Preview</button>
+        <button class="project-action-btn delete delete-btn" title="Delete this version" style="color:var(--accent-error)">🗑</button>
       </div>
     `;
 
-    item.querySelector('button').addEventListener('click', (e) => {
+    item.querySelector('.preview-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      if (confirm('Are you sure you want to restore this version? Unsaved changes will be lost.')) {
-        restoreVersion(ver);
-        hideVersionModal();
+      prePreviewState = canvas.serialize();
+      currentlyPreviewingVersion = ver;
+      restoreVersion(ver);
+      hideVersionModal();
+      document.getElementById('preview-bar').classList.remove('hidden');
+      document.getElementById('preview-version-name').textContent = ver.message || 'Untitled Version';
+    });
+    
+    item.querySelector('.delete-btn').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (confirm('Delete this version forever?')) {
+        const res = await deleteProjectVersion(ownerId, currentProjectId, ver.id);
+        if (res.error) showToast('Error: ' + res.error, 'error');
+        else showVersionHistory(); // Refresh list
       }
     });
 
@@ -2156,18 +2181,28 @@ function hideVersionModal() {
 }
 
 function restoreVersion(versionData) {
-  if (versionData.graphData) {
-    if (versionData.graphData.type === 'platformer2d') {
-      switchMode('2d-platformer');
-      if (platformerCanvas) platformerCanvas.loadProjectData(versionData.graphData);
-    } else {
-      switchMode('3d-story');
-      canvas.loadProjectData(versionData.graphData);
-    }
-    showToast('Version restored', 'success');
-    markDirty(); // Mark dirty so it gets saved to main branch on next save
   }
 }
+
+// Preview UI Actions
+document.getElementById('preview-restore-btn')?.addEventListener('click', () => {
+    saveCurrentProject(); // saves currently loaded canvas back to db as current
+    document.getElementById('preview-bar').classList.add('hidden');
+    prePreviewState = null;
+    currentlyPreviewingVersion = null;
+    showToast('Version restored successfully!', 'success');
+});
+
+document.getElementById('preview-cancel-btn')?.addEventListener('click', () => {
+    if (prePreviewState) {
+       canvas.loadFromJSON(JSON.parse(prePreviewState));
+       canvas.render();
+    }
+    document.getElementById('preview-bar').classList.add('hidden');
+    prePreviewState = null;
+    currentlyPreviewingVersion = null;
+    showToast('Preview cancelled.', 'info');
+});
 
 // ============================
 // Boot
