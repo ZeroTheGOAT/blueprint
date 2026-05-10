@@ -536,8 +536,25 @@ async function handleAiCheck() {
     });
     const res = await checkPlotHoles({ nodes });
     
-    // Create a simple custom modal or use alert to display the paragraph
-    alert("AI Plot Hole Analysis:\n\n" + res);
+    // Open the chat panel and append the analysis as an AI bubble
+    const chatPanel = document.getElementById('ai-chat-panel');
+    if (chatPanel) chatPanel.classList.remove('hidden');
+    const messages = document.getElementById('ai-chat-messages');
+    if (messages) {
+      const bubble = document.createElement('div');
+      bubble.className = 'ai-chat-bubble ai';
+      
+      // Basic markdown formatting
+      let formattedText = res
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        
+      bubble.innerHTML = `<strong>AI Plot Analysis:</strong><p>${formattedText}</p>`;
+      messages.appendChild(bubble);
+      messages.scrollTop = messages.scrollHeight;
+    }
   } catch (err) {
     if (err.message.includes('No API key found')) {
       const key = prompt('Please enter your Gemini API key (it will be saved locally in your browser):');
