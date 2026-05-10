@@ -140,6 +140,9 @@
               <button data-action="export-json"><span class="menu-icon">📤</span> Export JSON</button>
               <button data-action="export-png"><span class="menu-icon">🖼️</span> Export as PNG</button>
               <button data-action="import-json"><span class="menu-icon">📥</span> Import JSON</button>
+              <div class="menu-divider"></div>
+              <button data-action="save-version"><span class="menu-icon">🔖</span> Commit Version</button>
+              <button data-action="version-history"><span class="menu-icon">🕒</span> Version History</button>
             </div>
           </div>
           <div class="toolbar-menu" data-menu="edit">
@@ -329,6 +332,21 @@
         </div>
         <div class="modal-footer">
           <button id="new-project-modal-btn" class="auth-btn primary-btn">+ New Project</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Version History Modal -->
+    <div id="version-modal" class="modal-overlay hidden">
+      <div class="modal-card project-manager-modal">
+        <div class="modal-header">
+          <h3 style="margin:0;font-size:16px;">🕒 Version History</h3>
+          <button class="modal-close" id="close-version-modal">×</button>
+        </div>
+        <div class="modal-body">
+          <div id="version-list" class="project-list">
+            <!-- Populated by JS -->
+          </div>
         </div>
       </div>
     </div>

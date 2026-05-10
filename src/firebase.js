@@ -148,6 +148,37 @@ export async function shareProject(ownerId, projectId, email) {
   }
 }
 
+export async function saveProjectVersion(ownerId, projectId, projectData, versionMessage = "Auto-save") {
+  try {
+    const versionsRef = collection(db, 'users', ownerId, 'blueprint', projectId, 'versions');
+    await setDoc(doc(versionsRef), {
+      ...projectData,
+      message: versionMessage,
+      createdAt: serverTimestamp()
+    });
+    return { success: true };
+  } catch (error) {
+    console.error('Save version error:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function listProjectVersions(ownerId, projectId) {
+  try {
+    const versionsRef = collection(db, 'users', ownerId, 'blueprint', projectId, 'versions');
+    const q = query(versionsRef, orderBy('createdAt', 'desc'));
+    const snap = await getDocs(q);
+    const versions = [];
+    snap.forEach(docSnap => {
+      versions.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    return { versions, error: null };
+  } catch (error) {
+    console.error('List versions error:', error);
+    return { versions: [], error: error.message };
+  }
+}
+
 export async function loadProject(userId, projectId) {
   try {
     const ref = doc(db, 'users', userId, 'blueprint', projectId);

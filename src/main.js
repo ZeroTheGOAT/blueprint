@@ -19,7 +19,9 @@ import {
   loadProject,
   listProjects,
   deleteProject,
-  shareProject
+  shareProject,
+  saveProjectVersion,
+  listProjectVersions
 } from './firebase.js';
 import { generateId, showToast, formatDate, debounce, downloadJSON, readFileAsJSON } from './utils/helpers.js';
 import { checkPlotHoles, chatWithAI, setApiKey } from './engine/AIHelper.js';
@@ -191,6 +193,7 @@ function initApp() {
   initContextMenu();
   initSearch();
   initProjectModal();
+  initVersionModal();
   initKeyboardShortcuts();
   initMobile();
   initAIChat();
@@ -415,6 +418,12 @@ function handleMenuAction(action) {
       break;
     case 'save-as':
       saveAsNewProject();
+      break;
+    case 'save-version':
+      commitVersion();
+      break;
+    case 'version-history':
+      showVersionHistory();
       break;
     case 'export-json':
       exportJSON();
@@ -1992,6 +2001,112 @@ async function handleLogout() {
   canvas = null;
   currentUser = null;
   currentProjectId = null;
+}
+
+// ============================
+// Version History
+// ============================
+
+function initVersionModal() {
+  document.getElementById('close-version-modal')?.addEventListener('click', hideVersionModal);
+  document.getElementById('version-modal')?.addEventListener('click', (e) => {
+    if (e.target.id === 'version-modal') hideVersionModal();
+  });
+}
+
+async function commitVersion() {
+  if (!currentUser || !currentProjectId) {
+    showToast('Please save the project first before committing a version.', 'error');
+    return;
+  }
+  const message = prompt('Commit Message:', 'Version ' + new Date().toLocaleTimeString());
+  if (!message) return;
+
+  const ownerId = currentProjectOwnerId || currentUser.uid;
+  const graphData = currentMode === '2d-platformer' ? platformerCanvas.getProjectData() : canvas.getProjectData();
+  const nodeCount = currentMode === '2d-platformer' ? platformerCanvas.tiles.size : canvas.graph.getNodeCount();
+
+  const { success, error } = await saveProjectVersion(ownerId, currentProjectId, {
+    graphData,
+    nodeCount
+  }, message);
+
+  if (success) {
+    showToast('Version committed successfully!', 'success');
+  } else {
+    showToast('Failed to commit version: ' + error, 'error');
+  }
+}
+
+async function showVersionHistory() {
+  if (!currentUser || !currentProjectId) {
+    showToast('Please open or save a project first.', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('version-modal');
+  const list = document.getElementById('version-list');
+  modal.classList.remove('hidden');
+
+  list.innerHTML = '<div class="empty-projects"><div class="spinner"></div><p>Loading versions...</p></div>';
+
+  const ownerId = currentProjectOwnerId || currentUser.uid;
+  const { versions, error } = await listProjectVersions(ownerId, currentProjectId);
+
+  if (error) {
+    list.innerHTML = `<div class="empty-projects"><p>Error: ${error}</p></div>`;
+    return;
+  }
+
+  if (versions.length === 0) {
+    list.innerHTML = '<div class="empty-projects"><p>No version history available.</p><small>Commit a version first!</small></div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  versions.forEach(ver => {
+    const item = document.createElement('div');
+    item.className = 'project-item';
+
+    item.innerHTML = `
+      <div class="project-icon">🔖</div>
+      <div class="project-details">
+        <div class="project-title">${escapeHtml(ver.message || 'Untitled Version')}</div>
+        <div class="project-meta">${ver.nodeCount || 0} nodes · ${formatDate(ver.createdAt)}</div>
+      </div>
+      <div class="project-actions">
+        <button class="project-action-btn share" title="Restore this version">↩️ Restore</button>
+      </div>
+    `;
+
+    item.querySelector('button').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('Are you sure you want to restore this version? Unsaved changes will be lost.')) {
+        restoreVersion(ver);
+        hideVersionModal();
+      }
+    });
+
+    list.appendChild(item);
+  });
+}
+
+function hideVersionModal() {
+  document.getElementById('version-modal')?.classList.add('hidden');
+}
+
+function restoreVersion(versionData) {
+  if (versionData.graphData) {
+    if (versionData.graphData.type === 'platformer2d') {
+      switchMode('2d-platformer');
+      if (platformerCanvas) platformerCanvas.loadProjectData(versionData.graphData);
+    } else {
+      switchMode('3d-story');
+      canvas.loadProjectData(versionData.graphData);
+    }
+    showToast('Version restored', 'success');
+    markDirty(); // Mark dirty so it gets saved to main branch on next save
+  }
 }
 
 // ============================
