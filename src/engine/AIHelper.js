@@ -6,8 +6,8 @@
 // - Gemma 4 31B: For structured tasks (branches, plot holes). 15 RPM, Unlimited TPM, 1.5K RPD.
 // - Gemma 3 27B: For free-form chat. 30 RPM, 15K TPM, 14.4K RPD.
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const MODEL_STRUCTURED = `${API_BASE}/gemma-4-31b-it`;  // JSON tasks (1.5K RPD, unlimited TPM)
-const MODEL_CHAT = `${API_BASE}/gemma-3-27b-it`;         // Chat (14.4K RPD)
+const MODEL_STRUCTURED = `${API_BASE}/gemma-4-26b-a4b-it`;  // JSON tasks (1.5K RPD, unlimited TPM)
+const MODEL_CHAT = `${API_BASE}/gemma-4-26b-a4b-it`;         // Chat (14.4K RPD)
 
 function getApiKey() {
   return import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
@@ -70,9 +70,9 @@ export async function checkPlotHoles(graphData) {
   const prompt = `Story graph:
 ${graph}
 
-Analyze the story graph and write a detailed paragraph or two identifying any plot holes, inconsistencies, or narrative dead ends. Provide suggestions on how to fix them. Do NOT use JSON. Write it as a natural, readable response.`;
+Analyze the story graph and write a massive, extremely detailed, multi-page analysis identifying any plot holes, inconsistencies, or narrative dead ends. Do not limit your length. Provide extensive suggestions on how to fix them. Do NOT use JSON. Write it as a natural, highly detailed, readable response.`;
 
-  return await callModel(prompt, MODEL_STRUCTURED, 4096);
+  return await callModel(prompt, MODEL_STRUCTURED, 8192);
 }
 
 /**
@@ -87,9 +87,9 @@ export async function chatWithAI(userMessage, graphData) {
   const prompt = `You are a game narrative assistant. The user is designing a story with these nodes:
 ${graph}
 
-Be concise and creative. Help with story ideas, characters, world-building, dialogue.
+Do NOT be concise. Provide extremely detailed, comprehensive, and creative responses. Help with story ideas, characters, world-building, dialogue without holding back on length or detail.
 
 User: ${userMessage}`;
 
-  return await callModel(prompt, MODEL_CHAT, 2048);
+  return await callModel(prompt, MODEL_CHAT, 8192);
 }
