@@ -233,11 +233,12 @@ export async function listProjects(userId, userEmail, mode = 'my-projects') {
       const filteredDocs = [];
       adminSnapshot.forEach(docSnap => {
         const data = docSnap.data();
-        const pathOwnerId = docSnap.ref.parent.parent?.id || data.ownerId;
-        // Skip projects owned by the admin
-        if (pathOwnerId !== userId && data.ownerId !== userId) {
-          filteredDocs.push(docSnap);
+        const pathOwnerId = docSnap.ref.parent.parent?.id;
+        // Skip ANY project owned by the admin (check path AND data field)
+        if (pathOwnerId === userId || data.ownerId === userId) {
+          return; // This is admin's own project, skip it
         }
+        filteredDocs.push(docSnap);
       });
       processDocs(filteredDocs);
     } else if (mode === 'shared-projects') {
