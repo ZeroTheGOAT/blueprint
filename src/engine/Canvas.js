@@ -1146,6 +1146,10 @@ export class BlueprintCanvas {
     return this.graph.serialize();
   }
 
+  serialize() {
+    return this.graph.serialize();
+  }
+
   loadProjectData(data) {
     this.graph.clear();
     this.selectedNodes.clear();

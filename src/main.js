@@ -31,6 +31,7 @@ import { checkPlotHoles, chatWithAI, chatWithPlotChecker, setApiKey } from './en
 let currentAiMode = 'assistant';
 let prePreviewState = null;
 let currentlyPreviewingVersion = null;
+let lastVersionFingerprint = null;
 // ============================
 
 let canvas = null;
@@ -1631,6 +1632,7 @@ function newProject() {
   document.getElementById('project-name').value = 'Untitled Project';
   canvas.clearAll();
   if (platformerCanvas) platformerCanvas.clear();
+  lastVersionFingerprint = null;
   showToast('New project created', 'success');
   markDirty();
 }
@@ -1664,7 +1666,12 @@ async function saveCurrentProject() {
     localStorage.setItem('blueprint_lastProjectId', currentProjectId);
     localStorage.setItem('blueprint_lastOwnerId', ownerId);
     localStorage.removeItem(`blueprint_cache_${currentProjectId}`);
-    saveProjectVersion(ownerId, currentProjectId, { graphData, nodeCount }, 'Auto-save at ' + new Date().toLocaleTimeString());
+    // Only save a version if the graph structure actually changed (new/removed nodes or connections)
+    const fingerprint = getGraphFingerprint();
+    if (fingerprint !== lastVersionFingerprint) {
+      lastVersionFingerprint = fingerprint;
+      saveProjectVersion(ownerId, currentProjectId, { graphData, nodeCount }, 'Auto-save at ' + new Date().toLocaleTimeString());
+    }
   } else {
     updateSaveStatus('unsaved');
     showToast('Save failed: ' + error, 'error');
@@ -1729,6 +1736,7 @@ async function openProject(projectId, ownerId) {
     isDirty = false;
     updateSaveStatus('saved');
   }
+  lastVersionFingerprint = getGraphFingerprint();
   localStorage.setItem('blueprint_lastProjectId', projectId);
   localStorage.setItem('blueprint_lastOwnerId', targetOwnerId);
   showToast('Project loaded', 'success');
@@ -1755,6 +1763,7 @@ async function loadLastProject() {
       }
       isDirty = false;
       updateSaveStatus('saved');
+      lastVersionFingerprint = getGraphFingerprint();
       return;
     }
   }
@@ -1776,6 +1785,23 @@ function exportJSON() {
 // ============================
 // Auto-save & State
 // ============================
+
+function getGraphFingerprint() {
+  try {
+    const graphData = currentMode === '2d-platformer'
+      ? (platformerCanvas ? platformerCanvas.getProjectData() : null)
+      : canvas.getProjectData();
+    if (!graphData) return '';
+    // Fingerprint based on node IDs and connection structure only
+    const nodeIds = (graphData.nodes || []).map(n => n.id).sort().join(',');
+    const connSigs = (graphData.connections || []).map(c =>
+      `${c.fromNodeId}:${c.fromPortIndex}->${c.toNodeId}:${c.toPortIndex}`
+    ).sort().join(',');
+    return `n:${nodeIds}|c:${connSigs}`;
+  } catch (e) {
+    return '';
+  }
+}
 
 function markDirty() {
   isDirty = true;
@@ -2155,7 +2181,10 @@ async function showVersionHistory() {
 
     item.querySelector('.preview-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      prePreviewState = canvas.serialize();
+      // Save current canvas state before loading the preview version
+      prePreviewState = currentMode === '2d-platformer'
+        ? (platformerCanvas ? platformerCanvas.getProjectData() : null)
+        : canvas.getProjectData();
       currentlyPreviewingVersion = ver;
       restoreVersion(ver);
       hideVersionModal();
@@ -2189,13 +2218,12 @@ function restoreVersion(versionData) {
       switchMode('3d-story');
       canvas.loadProjectData(versionData.graphData);
     }
-    showToast('Version restored', 'success');
-    markDirty(); // Mark dirty so it gets saved to main branch on next save
   }
 }
 
 // Preview UI Actions
 document.getElementById('preview-restore-btn')?.addEventListener('click', () => {
+    markDirty();
     saveCurrentProject(); // saves currently loaded canvas back to db as current
     document.getElementById('preview-bar').classList.add('hidden');
     prePreviewState = null;
@@ -2205,8 +2233,14 @@ document.getElementById('preview-restore-btn')?.addEventListener('click', () => 
 
 document.getElementById('preview-cancel-btn')?.addEventListener('click', () => {
     if (prePreviewState) {
-       canvas.loadFromJSON(JSON.parse(prePreviewState));
-       canvas.render();
+      // Restore the original canvas state from before preview
+      if (prePreviewState.type === 'platformer2d') {
+        switchMode('2d-platformer');
+        if (platformerCanvas) platformerCanvas.loadProjectData(prePreviewState);
+      } else {
+        switchMode('3d-story');
+        canvas.loadProjectData(prePreviewState);
+      }
     }
     document.getElementById('preview-bar').classList.add('hidden');
     prePreviewState = null;
